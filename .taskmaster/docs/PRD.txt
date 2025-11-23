@@ -1,0 +1,543 @@
+# **📘 Product Requirements Document (PRD)**
+
+### **Read It — Reddit Intelligence Tool**
+
+*Version 0.1 – Draft*
+
+---
+
+# **1. Overview**
+
+**Read It** is a lightweight, LLM-augmented Reddit analysis tool designed for curiosity, research, and writing inspiration. It allows users to:
+
+1. **Research Mode:** Scrape large portions of Reddit (or selected subreddits) to discover what Reddit posts say about a given topic.
+2. **Theme Mode:** Analyze a specific subreddit across a defined time range to extract major themes, patterns, sentiments, and trends.
+
+The app produces **structured summaries**, **visual analytics**, and **exportable reports** (CSV, JSON, PDF).
+No authentication or user accounts are required — the user downloads results locally.
+
+Read It focuses on simplicity: a clean dark UI, a textbox-driven query flow, and intelligent results powered by the user’s own OpenAI API key.
+
+---
+
+# **2. Goals**
+
+### **2.1 Primary Goals**
+
+* Help users **discover interesting subjects to write or learn about**.
+* Provide a better version of Reddit search with LLM-enhanced interpretation.
+* Surface meaningful insights, sentiment, themes, and statistics at scale.
+* Produce readable, well-organized summaries with direct source links.
+* Avoid complicated onboarding (no login, no accounts, no backend dependencies initially).
+
+### **2.2 Non-Goals**
+
+* No authenticated Reddit access.
+* No cross-device user accounts or cloud libraries (at least for v0.1).
+* No attempt to bypass hardcore rate limits—scraping volume will be bounded.
+
+---
+
+# **3. Key Features**
+
+## **3.1 Research Mode**
+
+### **User Flow**
+
+1. User enters a topic into a textbox.
+2. App sends topic → LLM → generates:
+
+   * Expanded keyword list
+   * Possible related concepts
+   * Synonyms/misspellings
+   * Multiple interpretations (e.g., “Hercules” as mythology, crypto, workouts)
+3. User selects:
+
+   * Subreddits to include (suggested list + manual entry)
+   * Content types (posts, comments, metadata)
+   * Time range (optional)
+4. App scrapes Reddit (API or scraping depending on stability/performance)
+5. LLM processes the scraped data into:
+
+   * **Narrative summary**
+   * **Bullet-point insights**
+   * **Themes & sub-themes**
+   * **Controversies & sentiment**
+   * **Keyword extraction**
+6. Tool generates charts:
+
+   * Keyword frequency
+   * Sentiment distribution
+   * Upvote distribution
+   * Time-based frequency
+7. Results displayed + available for export.
+
+### **Outputs**
+
+* Summaries (narrative + bullet point)
+* Charts (basic analytics only for v0.1)
+* CSV (raw & processed)
+* JSON (raw & processed)
+* PDF (auto-generated report)
+* Full list of source links
+
+---
+
+## **3.2 Theme Mode**
+
+### **User Flow**
+
+1. User picks a **single subreddit**.
+2. User chooses:
+
+   * Time range (default: all-time)
+   * Content types
+3. App pulls a sample (up to configurable limits) and computes:
+
+   * **Major recurring topics**
+   * **Clusters of posts** (LLM + embeddings → cluster labels)
+   * **Sentiment by topic**
+   * **Common opinions, myths, memes**
+   * **Trends over time**
+4. Outputs are grounded strictly in the scraped posts.
+5. User exports everything.
+
+### **Outputs**
+
+* Thematic clusters & labels
+* Sentiment summaries
+* Timeline chart (activity by year/month)
+* Keyword cloud
+* Narrative description (“What this subreddit is about”)
+* CSV/JSON/PDF
+
+---
+
+# **4. Functional Requirements**
+
+## **4.1 Scraper**
+
+* Should support both:
+
+  * **Reddit API** (if feasible)
+  * **Fallback scraper** for public pages
+* Must support:
+
+  * Titles
+  * Bodies
+  * Comments (optional)
+  * Flair
+  * Upvotes
+  * Timestamps
+  * Permalinks
+* Handle blocked subreddits gracefully:
+
+  * Surface error in UI
+  * Continue scraping others
+
+### **Limits**
+
+* Max posts per run: **configurable (default: 200–800)**
+* Max subreddits per run: **configurable (default: 20)**
+* Progress bar required
+* Rate-limit detection & auto-cooldown messages
+
+---
+
+## **4.2 LLM Interaction**
+
+* Users must supply their own OpenAI API key.
+
+* LLM tasks include:
+
+  * Query expansion
+  * Theme extraction
+  * Clustering description
+  * Summarization
+  * Sentiment interpretation
+  * Statistics → narrative form
+
+* Strict grounding:
+  → LLM must only summarize content from scraped text, never invent.
+
+* Users may refine the query before scraping.
+
+---
+
+## **4.3 UI / UX**
+
+* Dark theme only (v0.1)
+* Minimalist design:
+
+  * Textbox for input
+  * Sidebar mode switch (Research / Theme)
+  * Simple results page with tabs:
+
+    * Summary
+    * Themes
+    * Stats
+    * Sources
+  * Export button
+* “Quick Ask” mode:
+
+  * Fast query that uses minimal scraping & returns a lightweight summary.
+
+---
+
+## **4.4 Exporting**
+
+### PDF
+
+* Auto-generated from final report
+* Includes summary, themes, key charts, and source list
+
+### CSV
+
+* Raw post data
+* Processed analytics
+* Keyword tables
+
+### JSON
+
+* Full structured data for reprocessing elsewhere
+
+No user accounts = results stored temporarily in browser memory until export.
+
+---
+
+# **5. Non-Functional Requirements**
+
+## **5.1 Performance**
+
+* Scrape runs should complete within **30–60 seconds** for typical loads.
+* Graceful degradation if scraping must slow down.
+* Limit LLM token consumption per run (maximum configurable; estimated default: <25k tokens for summaries).
+
+## **5.2 Cost**
+
+* No backend LLM usage — user must provide their own API key.
+* Scraping cost is CPU/time only.
+
+## **5.3 Scalability**
+
+* Future versions may include:
+
+  * Cloud-based libraries
+  * Persistent user accounts
+  * Large-scale background scraping
+
+Not required now.
+
+---
+
+# **6. Risks & Limitations**
+
+### **6.1 Reddit Rate Limits**
+
+* If Reddit restricts traffic, fallback scraper should handle low volume.
+* Some subreddits may block scraping outright.
+
+### **6.2 LLM Hallucinations**
+
+* Must enforce grounding by feeding raw excerpts into context.
+* Avoid “hallucinated” summaries.
+
+### **6.3 Ambiguous Queries**
+
+* “Hercules” returns multiple domains.
+* LLM will include all relevant interpretations unless the user refines.
+
+### **6.4 User Device Limitations**
+
+* Heavy scraping or large datasets may strain memory on low-end machines.
+
+---
+
+# **7. Future Ideas (Not in v0.1)**
+
+*(Included for roadmap clarity)*
+
+* Full cloud library with tags, filters, and saved research projects
+* Daily/weekly automatic theme detection for selected subreddits
+* Multi-language translation
+* Deeper embeddings + semantic search across timelines
+* Chrome extension version
+* Collaborative research boards
+* “Explain this subreddit to me like I’m 12”
+* Post outlier analysis
+
+---
+
+# **8. Appendices**
+
+### **8.1 Tools & Tech Stack**
+
+* **Frontend**: Next.js / React
+* **Scraping**: Node.js + fetch/cheerio OR Reddit API wrapper
+* **Charts**: Chart.js or Recharts
+* **LLM**: OpenAI (user key required)
+* **State Storage**: Local browser storage + in-memory runtime
+
+
+
+
+--
+
+PRD Planning Text:
+
+I want you to help me create a PRD for the following (for Antigravity):
+
+I want to make an app that helps me scrape reddit for certain subjects. It will have two modes -- research mode, theme mode.
+Research mode will scrape nearly all of reddit (perhaps the user can manually search and select subreddits they want searched; maybe smart suggestions can be implemented fairly easily), and search all selected subreddits for information about a certain subject. The user will describe the subject in a textbox, the textbox will go to an LLM to figure out what to scrape for on these subreddits (the user might ask for more formal sources on a specific philosophical subject, for questions about a subject in general, or for any references to something especially obscure). It's a lot like an enhanced reddit search, to see what is on reddit about a subject.
+Theme mode will target a specific subreddit and try to figure out the overarching theme(s) of its posts over a timespan the user specifies (defaulted to all time). Of course, this is within reason. It allows the user to figure out the gist of a subreddit.
+After finishing, it will compile the results in a readable form, and provide statistics. it will also provide links to the sources, and at the end of the day it will save all this to an everexpanding library
+The end goal of this is mostly for me to be able to find interesting subjects to write about, and interesting things to learn.
+Let me know if im missing any obvious requirements or steps in this prd description, or some obvious limitations. i'll give me answers to them, and then you can help me draft up this prd
+
+
+
+
+
+Here are the **missing requirements, design questions, and limitations** you should clarify before I draft the PRD. Once you answer these, I can produce a clean, professional PRD tailored to Antigravity’s style.
+
+---
+
+# ✅ **Missing Requirements & Clarification Questions**
+
+### **1. Reddit API / Scraping Method**
+
+* Will this rely on **Reddit’s official API** (with OAuth + rate limits) or **non-API scraping**?
+* Does the app need to support **authenticated user sessions** (for private subs / NSFW content)?
+* Any constraints around:
+
+  * API quotas
+  * Post/comment limits
+  * Search pagination
+
+---
+
+### **2. Data Types to Scrape**
+
+For each mode, we should specify what is included:
+
+* **Posts** (title, body)
+* **Comments**
+* **Metadata** (score, awards, timestamps, flair)
+* **Images, links, videos?**
+* Does the user choose which of these to scrape?
+
+---
+
+### **3. LLM Interaction**
+
+* Which LLM is powering:
+
+  * query expansion
+  * summarization
+  * theme extraction
+  * statistics generation
+* Will users have the option to bring their own API key?
+* Should users be able to **refine the query** after initial LLM expansion?
+
+---
+
+### **4. Output Format**
+
+You mention “readable form + statistics,” but we should define:
+
+* Summary format (narrative? bullet points?)
+* Graphs / charts?
+
+  * e.g., most-mentioned keywords, frequency over time
+* Export options?
+
+  * Markdown
+  * PDF
+  * Notion page
+  * JSON
+* Structure of library storage
+
+---
+
+### **5. Library / Data Persistence**
+
+* Local storage or cloud backend?
+* Should the user have tags, folders, search, favorites?
+* Does the app keep raw scraped data or only summaries?
+
+---
+
+### **6. Theme Mode Specifics**
+
+Theme extraction can mean many things. Clarify what you want:
+
+* Primary recurring topics/themes?
+* Sentiment (positive/neutral/negative)?
+* Common opinions?
+* Controversial posts?
+* Trends over time?
+
+Also:
+
+* Should Theme Mode include **clustering** (LLM embeddings → k-means → label clusters)?
+* Should it detect **outlier posts**?
+
+---
+
+### **7. Research Mode Specifics**
+
+Questions:
+
+* How broad can the query be?
+
+  * “What does Reddit think of capitalism?” vs. “Information about a medieval philosophical concept”
+* Should the tool:
+
+  * detect mis-spellings?
+  * detect synonyms?
+  * auto-translate posts?
+
+---
+
+### **8. Performance & Rate Limits**
+
+Reddit scraping can get slow. Do you want:
+
+* Background jobs?
+* Progress indicator?
+* Max subreddits per run?
+* Max posts per run?
+
+---
+
+### **9. Safety & Compliance**
+
+Are you concerned about:
+
+* NSFW content?
+* Hate speech?
+* Data storage safety?
+* Respecting subreddit rules?
+* Caching user results?
+
+---
+
+### **10. UI/UX Clarifications**
+
+Do you want:
+
+* A simple dashboard?
+* Profiles for different research projects?
+* Dark mode?
+* A “quick ask” mode like Perplexity?
+
+---
+
+### **11. “Ever-expanding library” details**
+
+Should the library store:
+
+* Raw scraped dumps
+* LLM summaries
+* Charts
+* Source links
+* Timestamped runs
+* “Insights” the LLM generated
+* User annotations
+
+How should the library be navigated?
+
+* Search by keyword
+* Filter by date
+* Filter by subreddit
+* Tagging system
+
+---
+
+# ❗️ **Obvious Limitations to Acknowledge**
+
+These need addressing in the PRD:
+
+### **• Reddit API rate limits**
+
+You can only fetch so much data per minute/hour.
+
+### **• Some subreddits block API access**
+
+We need error handling and fallback strategies.
+
+### **• LLM hallucinations**
+
+Theme extraction must refer to *actual posts*, not invented content.
+We may want to enforce strict grounding in excerpts.
+
+### **• Cost control**
+
+LLM summarization + embeddings can get expensive on large datasets.
+
+### **• Query expansion ambiguity**
+
+If the user enters “tell me about Hercules,” does the LLM:
+
+* search mythology posts
+* search gym workout posts
+* search cryptocurrencies
+  …?
+
+Need disambiguation.
+
+### **• Summarization bias**
+
+Reddit content skews toward:
+
+* younger demographics
+* tech communities
+* English speakers
+
+We may want disclaimers.
+
+---
+
+# 🔥 Your Turn
+
+Please answer the following in **short bullets**, and I will convert everything into a clean, cohesive PRD immediately:
+
+### **A. Reddit access method (API? scraping? authenticated?)**
+
+### **B. What content types should be scraped (posts/comments/images/etc.)**
+
+### **C. How results should be presented and exported**
+
+### **D. How the library should function**
+
+### **E. Specifics for Research Mode**
+
+### **F. Specifics for Theme Mode**
+
+### **G. Any performance, cost, or safety constraints**
+
+### **H. Anything you want the app *not* to do**
+
+Once you answer, I'll assemble the full PRD for Antigravity.
+
+
+
+1. whichever is better. if non-api scraping is better (and cheaper - i only have money for an api key for openai), then we'll do that. the app does not need to support authenticated user sessions i guess,... i suppose although i'd like the library, i don't want to deal with auth. so instead, allow them to download their results in a csv and pdf
+2. allow the user to select whichever of these (can select all of them, one of them, or any mix and match in between)
+3. i'll add my own api key, and if i ever put this on vercel i'll do it there too. i'll use openai. the user should ideally have the option to refine the query indeed
+4. all of those. summary format (bullets AND narrative), graphs and charts (keywords, upvotes, frequency over time, etc etc -- get the basics for now and we can add more as needed). pdf and json and csv exports for now
+5. local storage for now, but we can keep the library idea in the back of our minds
+6. all those. for example, if the user wants to find what reddit has to say about the concept of "throwness," they can see any posts on reddit related to it (by name and even by content). they can find sentiments on the newest games, common opinions in different subreddits, controversial posts, trends, etc etc
+I suppose clustering could be cool
+Outlier posts can be ignored in this iteration, for simplicity
+7. A query can be broad, but of course, the more specific, the better
+the tool should indeed detect misspellings and synonyms, i suppose the llm could perhaps do so? idk. don't worry about translation
+8. i suppose max subreddits/posts per run, and a progress indicator would be cool. i just dont want to hit a rate limit without knowing and waste my time sitting there
+9. ehhhh
+10. simplicity. a nice, simple dark theme. even quick ask like perplexity
+11. we'll forego the library but, yes, it would be a lot like that.
+
+How much data can we fetch reasonably? If some subreddits block, we'll just ensure the user is notified and everything continues. enforce the strict grounding necessary, and yes i know the cost might be large but maybe my key can handle it within reason.
+the "tell me about hercules" case can search all of those, and ensure it refers to each of those so the user knows how to refine
+
+btw the app is not called antigravity, just call it "Read It" idk

@@ -1,0 +1,687 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Project scaffold, dark UI shell, and settings",
+        "description": "Initialize Next.js app with dark-only UI, basic navigation, mode switch (Research/Theme), query textbox, and settings to capture the user's OpenAI API key and scraping limits.",
+        "details": "Stack: Next.js (App Router), React, TypeScript, TailwindCSS (dark mode class), Zustand/Context for app state. Configure environment and build. Implement: 1) Layout with sidebar (mode switch), top bar with settings button, main content area with tabs placeholder (Summary, Themes, Stats, Sources). 2) Settings modal storing: OpenAI API key (stored in localStorage, never sent to server except embedding/summarization calls made client-side), scraping limits (maxPosts default 400, maxSubs default 20), toggles (include comments, include metadata), and selection for data source preference (Auto, Reddit API, HTML fallback). 3) Progress bar and status toasts area. 4) Type definitions for app state. 5) Basic error banner. Pseudo-code: \n- create-next-app --ts\n- Tailwind setup (dark class on html root)\n- State: const useApp = create({ mode: 'research' | 'theme', settings: { openaiKey: '', limits: {...} } })\n- SettingsModal: onSave -> localStorage.setItem('readit_settings', JSON.stringify(settings))\n- ProgressBar component: <Progress value={percent} label={phase}/>\n- Pages: / (query input), /results",
+        "testStrategy": "Manual smoke: app builds, dark UI renders, mode toggle persists. Unit: settings reducer/state persistence; ensure key is retrievable from localStorage. Accessibility: color contrast in dark mode. Snapshot tests for layout. Security: verify OpenAI key not logged; no network calls on save.",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Scaffold Next.js (App Router) project and Tailwind dark-only setup",
+            "description": "Initialize the repository, Next.js app, Tailwind with dark mode class, TypeScript, and basic tooling/scripts.",
+            "dependencies": [],
+            "details": "- Run: npx create-next-app@latest --ts\n- Install deps: tailwindcss postcss autoprefixer zustand classnames @testing-library/react @testing-library/jest-dom jest ts-jest @types/jest\n- Tailwind init and config: darkMode:'class'; add src/app/globals.css with @tailwind base, components, utilities; set base dark palette tokens via CSS vars\n- Add scripts: dev, build, start, test\n- .nvmrc, .gitignore, README scaffold\n- Ensure html will receive class \"dark\" in root layout\n- No server env for OpenAI key (stored client-side only)",
+            "status": "pending",
+            "testStrategy": "Manual: next dev loads without error; page renders dark background by default. Lint passes. Jest runs a sample test. Verify Tailwind dark styles apply when html has class \"dark\"."
+          },
+          {
+            "id": 2,
+            "title": "Define TypeScript models and Zustand store with localStorage persistence",
+            "description": "Create app state types and a persisted Zustand store for mode, settings, and UI flags.",
+            "dependencies": [
+              1
+            ],
+            "details": "- Types: Mode = 'research' | 'theme'; DataSourcePreference = 'auto' | 'reddit' | 'html'\n- Settings: { openaiKey:string; limits:{ maxPosts:number=400; maxSubs:number=20 }; includeComments:boolean; includeMetadata:boolean; dataSourcePreference:DataSourcePreference }\n- Store: useApp with { mode, settings, progress:{percent:number, phase:string|null}, error:string|null }\n- Persistence: save settings under key 'readit_settings' (JSON). Persist mode under 'readit_ui' to keep UI prefs separate. Hydrate safely only in browser\n- Actions: setMode, setSettings(partial), setProgress, clearProgress, setError, clearError\n- Never log or transmit openaiKey in actions. Add simple version/migration for settings schema",
+            "status": "pending",
+            "testStrategy": "Unit (Jest + JSDOM): setSettings writes to localStorage('readit_settings') and can be read back. setMode persists to 'readit_ui'. Ensure openaiKey is not logged (spy console). Types compile without errors."
+          },
+          {
+            "id": 3,
+            "title": "Build dark UI shell: sidebar mode switch, top bar, tabs, pages, and error banner",
+            "description": "Implement core layout and navigation with sidebar, top bar button, tabs placeholders, home query input, and /results route.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "- App Router structure: app/layout.tsx sets <html className='dark'>, applies globals.css\n- Components: Sidebar (mode switch using store), TopBar (Settings button placeholder), ErrorBanner (reads error from store), Tabs placeholder (Summary, Themes, Stats, Sources)\n- Pages: app/page.tsx with topic query textarea and a Continue/Search button; app/results/page.tsx rendering the tabbed placeholders\n- Active route highlighting; responsive layout; keyboard-accessible nav and tabs\n- Wire mode switch to store; persist via store; render ErrorBanner area below top bar",
+            "status": "pending",
+            "testStrategy": "Snapshot tests for layout render. Manual: navigate / and /results, toggle mode persists on reload. Accessibility quick check: nav landmarks, focus states, tab roles. Visual: dark colors meet contrast guidelines."
+          },
+          {
+            "id": 4,
+            "title": "Implement Settings modal with OpenAI key, scraping limits, toggles, and source preference",
+            "description": "Create accessible modal to capture settings, persist to localStorage, and hydrate on load.",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "- SettingsModal: open from TopBar; fields: OpenAI API key (password with reveal toggle), maxPosts (default 400), maxSubs (default 20), toggles includeComments/includeMetadata, select for data source (Auto/Reddit API/HTML)\n- Validation: max values >0, sensible caps; mask key display; show last 4 chars on saved state\n- onSave: localStorage.setItem('readit_settings', JSON.stringify(settings)); update store; do not perform any network calls\n- On mount: read from localStorage to prefill; show warning if key missing when attempting actions\n- Add SettingsContextualHelp text; ensure focus trap, aria-modal, Escape/overlay close",
+            "status": "pending",
+            "testStrategy": "Unit: open modal, change fields, Save, assert store and localStorage updated; ensure fetch not called on save. Manual: reload preserves values, key is masked, validation messages show. Accessibility: focus trap and labels."
+          },
+          {
+            "id": 5,
+            "title": "Add ProgressBar component and status toasts area, wired to store",
+            "description": "Provide visual feedback for long tasks via progress bar, toasts, and integrate into shell.",
+            "dependencies": [
+              3,
+              2
+            ],
+            "details": "- ProgressBar: <Progress value={percent} label={phase}/>; reads from store.progress; place under TopBar\n- Toasts: lightweight in-app toast queue in store (or simple component reading an array); aria-live polite; auto-dismiss and manual dismiss\n- Expose helpers: toast.success/error/info; setProgress/clearProgress actions update UI\n- Integrate ErrorBanner to also render latest error toast content when critical\n- Add example triggers on / page to demo progress/toasts (dev-only)\n- Ensure styles match dark UI and are responsive",
+            "status": "pending",
+            "testStrategy": "Manual: trigger fake progress and verify animated updates. Unit: store toast queue push/pop behavior. Accessibility: aria-live tested via JSDOM. Visual: snapshot of ProgressBar and a toast in dark mode."
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "OpenAI client module and prompt templates",
+        "description": "Create a client-side OpenAI module using the user's API key and implement reusable functions for query expansion, summarization, cluster labeling, and sentiment interpretation with grounding constraints.",
+        "details": "Use npm openai SDK. Models: gpt-4o-mini (cost/speed) for reasoning/summaries; text-embedding-3-small for embeddings. Implement functions: expandQuery(topic) -> {keywords[], synonyms[], interpretations[], misspellings[], suggestedSubreddits[]}; summarize(postsChunks) -> narrative+bullets with citations; labelCluster(excerpts) -> concise label; sentimentExplain(distribution) -> human narrative. Implement token budgeting and chunking. Enforce grounding by passing only scraped excerpts and requiring citations. Pseudo-code:\n- import OpenAI from 'openai';\n- function getClient(key){ return new OpenAI({ apiKey: key, dangerouslyAllowBrowser: true }); }\n- async function expandQuery(key, topic){\n  const client = getClient(key);\n  const sys = 'You expand Reddit research queries. Return strict JSON.';\n  const user = `Topic: ${topic}\\nReturn fields: keywords[], synonyms[], interpretations[], misspellings[], suggestedSubreddits[]`;\n  const res = await client.chat.completions.create({ model:'gpt-4o-mini', response_format:{type:'json_object'}, messages:[{role:'system',content:sys},{role:'user',content:user}] });\n  return JSON.parse(res.choices[0].message.content);\n}\n- function chunkPosts(posts, maxTokens){ /* greedy pack excerpts with ids, permalinks */ }\n- async function summarize(key, chunks){ /* iterate chunks, ask for JSON with {narrative, bullets[], citations:[{postId, quote}]} */ }\n- async function embedTexts(key, texts){ return client.embeddings.create({ model:'text-embedding-3-small', input:texts }); }",
+        "testStrategy": "Mock OpenAI responses using MSW to ensure JSON parsing and error handling. Unit tests for chunking/token estimation. Validate that prompts request citations, and outputs are strict JSON. Test large input: ensure chunking respects token budget and does not exceed set limits.",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create OpenAI client module, model constants, and JSON chat helper",
+            "description": "Set up the OpenAI SDK client and shared utilities to enforce strict JSON responses for chat completions and provide an embeddings wrapper.",
+            "dependencies": [],
+            "details": "- Files: src/lib/openai/client.ts, src/lib/openai/models.ts, src/lib/openai/types.ts, src/lib/openai/index.ts\n- Implement getClient(key: string) using new OpenAI({ apiKey: key, dangerouslyAllowBrowser: true }).\n- Define model constants: CHAT_MODEL='gpt-4o-mini', EMBED_MODEL='text-embedding-3-small'.\n- Implement chatJson<T>(client, messages, {model=CHAT_MODEL, temperature, maxTokens}) that sets response_format:{type:'json_object'}, retries (exponential backoff on 429/5xx), abort support, and safe JSON parsing with helpful errors.\n- Implement embedTexts(key, texts) wrapper calling embeddings.create({model: EMBED_MODEL, input: texts}) returning float[] vectors.\n- Create shared types (ExpandQueryResult, Citation, SummaryResult, ClusterLabelResult, SentimentExplainResult, PostExcerpt, Chunk) and export from index.ts.\n- Add minimal runtime validation (e.g., presence of required keys) and map OpenAI errors to friendly messages.",
+            "status": "pending",
+            "testStrategy": "Unit: mock OpenAI endpoints with MSW; verify chatJson enforces response_format and parses JSON. Retry/backoff tested by returning 429 twice then 200. Smoke test for embedTexts returns vectors with correct lengths."
+          },
+          {
+            "id": 2,
+            "title": "Implement token estimation and greedy chunking utilities for excerpts",
+            "description": "Add token estimation and chunking helpers to respect model limits and pack excerpts with IDs and permalinks.",
+            "dependencies": [
+              1
+            ],
+            "details": "- Files: src/lib/openai/tokens.ts and src/lib/openai/chunk.ts.\n- estimateTokens(str): use gpt-tokenizer or @dqbd/tiktoken if available; fallback to heuristic (chars/4). Guard with dynamic import and memoize.\n- Constants: MAX_MODEL_TOKENS=128000, MAX_PROMPT_TOKENS=4000 (configurable), CHUNK_OVERHEAD_TOKENS=600 (system+instructions budget).\n- chunkPosts(posts: PostExcerpt[], maxTokens=MAX_PROMPT_TOKENS): greedy pack excerpts maintaining fields {postId, permalink, excerpt}; keep chunks under (maxTokens-CHUNK_OVERHEAD_TOKENS). Ensure each chunk has running token tally and never splits a single excerpt across chunks.\n- Add packQuotesForPrompt(chunk): formats minimal JSON-safe payload to pass only scraped excerpts (no external context).",
+            "status": "pending",
+            "testStrategy": "Unit: feed 200 synthetic excerpts of varying sizes. Validate that no chunk exceeds the budget and every input item appears exactly once. Edge cases: one very large excerpt is dropped or truncated with a clear error."
+          },
+          {
+            "id": 3,
+            "title": "Implement expandQuery(topic) with strict JSON output and schema validation",
+            "description": "Create the query expansion function that returns keywords, synonyms, interpretations, misspellings, and suggestedSubreddits as strict JSON.",
+            "dependencies": [
+              1
+            ],
+            "details": "- File: src/lib/openai/expandQuery.ts.\n- Function: async function expandQuery(key: string, topic: string): Promise<ExpandQueryResult>.\n- Prompting: system='You expand Reddit research queries. Return strict JSON only. No prose.'; user includes topic and required fields: keywords[], synonyms[], interpretations[], misspellings[], suggestedSubreddits[].\n- Call chatJson with model gpt-4o-mini, temperature 0.3, response_format json_object.\n- Validate output keys and array types; coerce to lowercase/trim; de-duplicate entries; cap list sizes (e.g., max 25 each) to control prompt growth.\n- Return {keywords, synonyms, interpretations, misspellings, suggestedSubreddits}.",
+            "status": "pending",
+            "testStrategy": "Integration (MSW): stub /v1/chat/completions with valid JSON and with malformed JSON to ensure parser throws friendly error. Unit: ensure de-duplication, lowercase normalization, and max lengths are enforced."
+          },
+          {
+            "id": 4,
+            "title": "Implement summarize(postsChunks), labelCluster(excerpts), and sentimentExplain(distribution) with grounding constraints",
+            "description": "Build summarization with citations across chunks, concise cluster labeling, and sentiment interpretation, enforcing quotes-only grounding and JSON output.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "- Files: src/lib/openai/summarize.ts, src/lib/openai/label.ts, src/lib/openai/sentiment.ts.\n- summarize(key, chunks):\n  - For each chunk, call chatJson with system instructions forbidding invention and requiring quotes-only support. Ask for JSON: { narrative, bullets[], citations:[{postId, quote, permalink}] }.\n  - Provide only the scraped excerpts JSON to the model; include a policy line: 'If insufficient evidence, respond with narrative=\"insufficient evidence\" and empty bullets.'\n  - Merge step: concatenate narratives with connective sentence; dedupe bullets by text similarity (simple hash/normalize); merge and de-dup citations by postId+quote.\n  - Return SummaryResult with final narrative, bullets, citations.\n- labelCluster(excerpts): short JSON { label } under 60 chars; temperature 0.2; examples in prompt to bias toward concise, concrete labels.\n- sentimentExplain(distribution): input like {positive, neutral, negative}; produce { narrative } tying to percentages, cautioning on sample size; temperature 0.3.\n- Defensive checks: reject outputs lacking citations when bullets exist; sanitize to prevent long outputs; support AbortController.",
+            "status": "pending",
+            "testStrategy": "Golden tests: fixed excerpts produce stable bullets and citations. Negative: remove all quotes -> model must return 'insufficient evidence'. Merging test: two chunks with overlapping claims yield de-duplicated bullets and unified citations. Label length test: ensure <=60 chars. Sentiment: verify percentages are mentioned."
+          },
+          {
+            "id": 5,
+            "title": "Write comprehensive tests, fixtures, and examples; export public API",
+            "description": "Add MSW setup, unit/integration tests for all functions, fixtures for excerpts, and export a stable API surface.",
+            "dependencies": [
+              2,
+              3,
+              4
+            ],
+            "details": "- Files: src/__tests__/*, src/test/msw/*, src/lib/openai/index.ts.\n- MSW: intercept POST https://api.openai.com/v1/chat/completions and /v1/embeddings; provide JSON fixtures for expandQuery, summarize (single and multi-chunk), labelCluster, and sentimentExplain.\n- Tests:\n  - tokens/chunking: boundary budgets, very long excerpt behavior.\n  - expandQuery: schema enforcement, normalization, error surfacing on malformed model output.\n  - summarize: grounding invariant (citations required), merging correctness, empty evidence path.\n  - labelCluster: concision and determinism with temperature override.\n  - sentimentExplain: narrative mentions distribution and caveats.\n- Export from index.ts: { getClient, expandQuery, summarize, labelCluster, sentimentExplain, embedTexts, chunkPosts }.\n- Add minimal README usage snippet to guide integration.",
+            "status": "pending",
+            "testStrategy": "Run with Vitest/Jest. MSW verifies no real network calls. Add CI config to run tests headless. Include large input test to ensure chunking keeps total tokens under configured budgets."
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Query workflow UI (topic input, expansion, refine, subreddit selection)",
+        "description": "Implement the Research/Theme mode flow: topic textbox, LLM-driven expansion, review/adjust selections (subreddits, content types, time range), and a final confirmation screen.",
+        "details": "UI elements: Topic textarea; Expand button -> shows derived keywords, interpretations, and suggested subreddits; user can add/remove subreddits manually. Controls: content types (posts, comments, metadata), time range (from/to; presets last week/month/year/all-time), limits (max posts/subs), Quick Ask toggle (reduced limits). Implement a server route to fetch subreddit suggestions from Reddit search (no auth) as a helper: GET /api/subreddits?q=term -> scrapes https://www.reddit.com/subreddits/search/?q=term (server-side cheerio) to augment LLM suggestions. Pseudo-code UI:\n- const { expandQuery } = useOpenAI();\n- onExpand: setLoading(); const result = await expandQuery(apiKey, topic); setKeywords, setInterpretations; prefill subs\n- Manual entry: comma-separated input -> normalized\n- Validation: ensure at least one subreddit and one content type selected.\n- Quick Ask: sets maxPosts=60, comments=false, summarization budget small.",
+        "testStrategy": "Cypress/Playwright E2E: user enters topic, sees suggestions, edits list, sets options. Unit: validation logic. Integration: stub OpenAI to test expansion flow. Server route test: given query, returns list of subs (mock Reddit HTML).",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement server route: GET /api/subreddits?q=term (Cheerio scraper for Reddit search)",
+            "description": "Create a server-side endpoint that scrapes Reddit subreddit search results and returns normalized suggestions.",
+            "dependencies": [],
+            "details": "Build a Node/Express (or Next API) route at GET /api/subreddits that fetches https://www.reddit.com/subreddits/search/?q={term} with a desktop UA, parses HTML via Cheerio, and returns JSON: [{name, title, members?}]. Include basic caching (in-memory LRU ~200 entries, TTL ~10m), rate limiting, and robust selectors for possible DOM variants. Return 429 on rate limit, 400 on missing q, 502 on fetch failures. Normalize names to lowercase without r/ prefix.",
+            "status": "pending",
+            "testStrategy": "Unit: parse mocked HTML variants into expected JSON. Integration: supertest against the route with msw/undici mock for Reddit. Error cases: empty q, network timeout, unexpected DOM. Verify caching hit reduces fetch count."
+          },
+          {
+            "id": 2,
+            "title": "Build Topic input and LLM expansion flow (Expand button, loading, results panel)",
+            "description": "Create the topic textarea and expansion action that calls useOpenAI().expandQuery and renders results.",
+            "dependencies": [],
+            "details": "Implement Research/Theme page section with a controlled textarea for topic and an Expand button. On click: disable controls, show spinner, call expandQuery(apiKey, topic). On success, render derived keywords, interpretations, and prefill suggested subreddits into state. Handle errors with retry and toast. Define ExpandResult TS type to match outputs. Store expansion payload in local state for later steps. Prevent empty submissions and trim long inputs with helper.",
+            "status": "pending",
+            "testStrategy": "Integration: stub expandQuery via MSW to return deterministic JSON; assert UI renders keywords/interpretations. UX tests: button disabled on empty topic, loading state appears, errors surfaced. Snapshot test for results panel."
+          },
+          {
+            "id": 3,
+            "title": "Subreddit selection UI with manual entry, normalization, and suggestions via /api/subreddits",
+            "description": "Allow users to add/remove subreddits from LLM suggestions, manually input comma-separated names, and search for suggestions.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Create SubredditPicker component that displays chips from prefilled list and lets users remove items. Add an input with comma-separated entry; on blur/enter, normalize: trim, lowercase, strip r/ prefix, dedupe, validate /^[a-z0-9_]{3,21}$/; show inline errors for invalid tokens. Implement typeahead: on 3+ chars, debounce 300ms, call GET /api/subreddits?q=term and show a dropdown to add items. Maintain selected list in parent state. Support keyboard add/remove and a11y focus management.",
+            "status": "pending",
+            "testStrategy": "Unit: normalization/dedup/validation functions with edge cases. Integration: mock /api/subreddits to serve suggestions and assert dropdown selection adds chips. Accessibility: keyboard navigation for chip removal and typeahead list."
+          },
+          {
+            "id": 4,
+            "title": "Options panel: content types, time range presets/from-to, limits, Quick Ask toggle, and validation",
+            "description": "Implement controls for content types, date range, limits, and Quick Ask behavior. Add validation gating Next.",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Build an OptionsPanel with toggles for content types (posts, comments, metadata), date presets (last week/month/year/all-time) plus custom from/to pickers, and numeric inputs for maxPosts and maxSubs. Implement Quick Ask toggle that sets maxPosts=60, comments=false, and a small summarization budget flag; disable conflicting controls while active but allow reverting. Centralize validation: require at least one subreddit and one content type; show inline messages and disable Next until valid. Emit a draft RunConfig object upward on change.",
+            "status": "pending",
+            "testStrategy": "Unit: validation matrix (no subs, no content types, invalid ranges) and Quick Ask state transitions. Verify Quick Ask sets expected values and restores previous when off. Integration: simulate user selecting presets and custom range with correct serialization."
+          },
+          {
+            "id": 5,
+            "title": "Final confirmation screen and end-to-end flow wiring (review, back, confirm)",
+            "description": "Create a confirmation step showing selections and emitting final config on confirm; cover E2E flow.",
+            "dependencies": [
+              4
+            ],
+            "details": "Implement a ConfirmationScreen summarizing topic, keywords, interpretations, selected subreddits, content types, time range, limits, and Quick Ask status. Provide Back to edit and Confirm to finalize, emitting a validated RunConfig to the run controller entry point. Block confirm if validation fails. Persist draft in local storage to survive refresh. Add analytics event hooks. Wire the full flow: Topic -> Expand -> Refine (subs/options) -> Confirm. Handle API key presence and missing state safely.",
+            "status": "pending",
+            "testStrategy": "E2E (Cypress/Playwright): complete flow with OpenAI expansion stub and /api/subreddits mock—enter topic, expand, edit subs, set options (including Quick Ask), confirm; assert emitted config matches selections. Visual regression for confirmation summary. Negative tests: validation blocks confirm when invalid."
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Dual-source Reddit collector (API + HTML fallback) with rate limiting and progress",
+        "description": "Create a Node/Next.js API route that collects posts/comments using Reddit API when available, and falls back to HTML scraping (old.reddit.com) with Cheerio, emitting progress events and handling rate limits.",
+        "details": "Server route: /api/collect (POST) with payload {subs[], keywords[], timeRange, include:{posts,comments,metadata}, limits:{maxPosts,maxSubs}, sourcePreference:'auto'|'api'|'html'}. Use SSE to stream progress: headers {'Content-Type':'text/event-stream'}. Implement fetch strategies:\n- API strategy: Application-only OAuth (client_id/secret in server env). Token endpoint: https://www.reddit.com/api/v1/access_token (grant_type=client_credentials). Use JSON endpoints: /r/{sub}/search.json?q=...&restrict_sr=on&sort=relevance&limit=100&after=...; for comments: /comments/{id}.json. User-Agent required.\n- HTML strategy: old.reddit.com search pages: https://old.reddit.com/r/{sub}/search?q=...&sort=relevance&restrict_sr=on&t=all. Parse with cheerio selectors: .search-result, a.search-title (title+href), .search-result .search-expando (snippet), .search-result .search-time (timestamp), .tagline time, .author, .score. For comments optionally fetch post JSON via appended .json to permalink.\n- Rate limiting: p-limit concurrency (2-4), backoff on 429 with exponential delay; auto cooldown messages to client. Skip blocked subs with error events; continue others. Deduplicate by post id. Respect maxPosts and time range. Emit phases: start, subStarted, pageFetched, postParsed, subComplete, complete.\nSSE pseudo:\nexport async function POST(req){\n const encoder = new TextEncoder();\n const stream = new ReadableStream({ start(controller){ function send(ev){ controller.enqueue(`data: ${JSON.stringify(ev)}\\n\\n`);} /* collect loop, send progress */ }});\n return new Response(stream,{ headers:{'Content-Type':'text/event-stream','Cache-Control':'no-cache'}});\n}",
+        "testStrategy": "Unit tests for parsers (HTML -> Post). Integration tests with MSW to simulate Reddit API 200/429 and HTML. Test SSE client receives ordered progress events. Throttle tests validate cooldown messaging. Ensure blocked sub emits error but overall completes. Security check: ensure Reddit client_secret never leaks to client.",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create /api/collect SSE route scaffold with validation, types, and event helpers",
+            "description": "Set up the Next.js API route for POST /api/collect that streams Server-Sent Events and validates input.",
+            "dependencies": [],
+            "details": "- Add dependencies: zod (schema), cheerio, p-limit, node-fetch polyfill if needed, msw (dev), nock or undici for tests. - Implement Zod schema for payload: {subs[], keywords[], timeRange (preset or {from,to}), include{posts,comments,metadata}, limits{maxPosts,maxSubs}, sourcePreference}. - Build typed Event shape: {type:'start'|'subStarted'|'pageFetched'|'postParsed'|'subComplete'|'cooldown'|'error'|'complete'|'heartbeat', data:any}. - Implement SSE stream using ReadableStream and TextEncoder with headers: Content-Type: text/event-stream, Cache-Control: no-cache, Connection: keep-alive, X-Accel-Buffering: no. - Provide send(event) utility that JSON.stringify’s and enqueues with \\n\\n. - Add heartbeat interval (e.g., 15s) and proper cleanup on abort signal. - Emit start event with normalized request summary. - Enforce basic limits (cap maxSubs/maxPosts to safe ranges) and normalize keywords/subs.",
+            "status": "pending",
+            "testStrategy": "Route smoke test: POST with minimal valid payload returns text/event-stream and emits 'start'. Validator unit tests: invalid shapes rejected with 400. Abort test: client abort closes stream. Heartbeat appears at expected interval."
+          },
+          {
+            "id": 2,
+            "title": "Implement Reddit API strategy with OAuth token cache, search, comments, and 429 backoff",
+            "description": "Build application-only OAuth client and API fetchers that respect rate limits, pagination, and progress events.",
+            "dependencies": [
+              1
+            ],
+            "details": "- Read REDDIT_CLIENT_ID/REDDIT_CLIENT_SECRET/REDDIT_USER_AGENT from server env only; validate on use. - Implement getOAuthToken(): POST to https://www.reddit.com/api/v1/access_token with client_credentials; cache token in-memory with expiry. - Create fetchRedditAPI(path, opts) that injects Authorization and User-Agent, handles 429/5xx with exponential backoff + jitter; emit 'cooldown' with retryIn seconds. - Implement searchSubredditAPI({sub, keyword, after?, timeRange}): GET /r/{sub}/search.json?limit=100&restrict_sr=on&sort=relevance&q=encodedQuery; use cloudsearch syntax to include timestamp range when provided; parse posts, map to unified Post {id, title, url, author, createdUtc, score, subreddit, permalink}. - Support pagination via after; emit 'pageFetched' for each page. - Deduplicate by post id. Filter by timeRange and enforce include flags. - If include.comments, implement fetchCommentsAPI(postId): GET /comments/{id}.json; map to minimal comment objects; throttle with p-limit(2-4). - Emit 'postParsed' per mapped post and bubble errors as 'error' events for blocked/forbidden subs.",
+            "status": "pending",
+            "testStrategy": "MSW mocks: token success, search pages (with after), comments, and 429 -> verify exponential backoff and 'cooldown' emission. Unit tests for mappers (JSON -> Post/Comment). Security test: ensure secrets/tokens aren’t logged or returned in events."
+          },
+          {
+            "id": 3,
+            "title": "Implement HTML scraping strategy for old.reddit.com with Cheerio and optional .json comments",
+            "description": "Scrape search results from old.reddit.com, parse posts, paginate, and optionally pull comments via permalink.json.",
+            "dependencies": [
+              1
+            ],
+            "details": "- Build fetchHTML(url) with proper headers (User-Agent from env, Accept-Language minimal) and 429/5xx handling with exponential backoff; emit 'cooldown' and continue. - Search URL: https://old.reddit.com/r/{sub}/search?q={keyword}&sort=relevance&restrict_sr=on&t=all. - Parse with Cheerio selectors: .search-result, a.search-title (title+href), .search-result .search-expando (snippet), .search-result .search-time and .tagline time (timestamp), .author, .score; compute post id from permalink (/comments/{id}/). - Follow pagination via the next button (span.next-button a) while respecting limits/timeRange. - If include.comments, fetch `${permalink}.json` to parse comments (reuse mapper used by API). - Emit 'pageFetched' and 'postParsed' events. - Deduplicate by post id, filter by timeRange, and handle blocked subs (403/robots) by emitting 'error' and continuing.",
+            "status": "pending",
+            "testStrategy": "Parser unit tests using stored HTML fixtures covering titles, permalinks, authors, timestamps, scores. Integration with MSW serving HTML and .json for comments. 429 simulation verifies backoff and 'cooldown' events. Ensure non-ASCII and escaped HTML handled."
+          },
+          {
+            "id": 4,
+            "title": "Orchestrate dual-source collection, fallback logic, limits, and progress phases",
+            "description": "Wire strategies together per sub and keyword with concurrency, dedupe, fallback, and finalization of SSE stream.",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "details": "- Implement collectorOrchestrator(req, send, signal): iterate subs (respecting limits.maxSubs) and keywords; emit 'subStarted' per sub. - Concurrency: p-limit across keyword fetches (2-4). - Source selection: if sourcePreference=='api' use API; 'html' use HTML; 'auto' attempt API first and on failure (auth/403/429 persistent) fall back to HTML per sub/keyword. - Maintain global dedupe Set(postId) across subs/keywords; stop when limits.maxPosts reached; emit incremental counts. - Enforce timeRange and include flags. - Handle and emit 'error' for blocked subs but continue others. - Emit 'subComplete' with counts per sub and final 'complete' with totals; ensure stream closes and intervals cleared. - Add keepalive and abort handling (stop in-flight with AbortController). - Sanitize event payloads to avoid leaking headers or secrets.",
+            "status": "pending",
+            "testStrategy": "End-to-end integration with MSW: mix of API success, API 429->fallback HTML, and blocked subs. Verify ordered events: start -> subStarted -> pageFetched/postParsed ... -> subComplete -> complete. Validate limits stop early and dedupe works across keywords."
+          },
+          {
+            "id": 5,
+            "title": "Testing, telemetry, and documentation for collector route",
+            "description": "Add comprehensive tests (unit and integration), minimal telemetry logs, and developer documentation.",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "- Write unit tests for: Zod schema, Post/Comment mapping, timeRange filtering, dedupe logic, backoff utility. - Integration tests: SSE client reads stream and events are well-formed/ordered; cooldown and error messages appear when simulated; abort cancels. - Security tests: ensure no secrets in responses/logs; validate User-Agent presence. - Add minimal structured logs for phases (debug level) guarded by env flag. - Documentation: README with payload shape, event types, example curl, environment variables required, and notes on rate limiting and fallback behavior. - CI config to run tests in Node 18+/20, include HTML fixtures for parser tests.",
+            "status": "pending",
+            "testStrategy": "Run test suite with MSW in Node test runner (Vitest/Jest). Assertions on SSE event order and contents. Golden tests for HTML parsing fixtures. Negative tests: removing a quote/comment reduces outputs. Security grep for secret leakage."
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Data schema, memory management, and run controller",
+        "description": "Define TypeScript schemas for posts/comments and implement a run controller that orchestrates collection, chunking, and storage in-memory with optional IndexedDB spillover for large runs.",
+        "details": "Types: Post { id, subreddit, title, body, upvotes, timestamp, flair?, permalink, author?, awards?, commentsCount? }; Comment { id, postId, body, upvotes, timestamp, permalink }. RunResult { posts[], comments[], errors[], meta:{limits, source, startedAt, duration} }. Implement a run controller on client: \n- startRun(config) -> connects to /api/collect via EventSource; aggregates results; updates progress bar; yields batches to analytics/LLM.\n- Memory guard: if total posts > 600, store raw arrays in IndexedDB (idb-keyval) as chunks; keep lightweight indexes in memory. Provide getBatch(n) to stream to downstream steps. Clean-up on export or reset.\n- Dedup and sanitize text (strip HTML, decode entities).\n- Time range filter applied uniformly post-collection as safety.",
+        "testStrategy": "Unit tests for type guards and sanitization. Memory tests: simulate 800 posts, ensure controller maintains memory below threshold by chunking. EventSource reconnection handling tests. Time filter correctness. Error aggregation test.",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Define TypeScript types and Zod schemas for Post, Comment, RunResult, and RunConfig",
+            "description": "Create strict runtime-validated schemas and type guards for all entities with optional fields and meta.",
+            "dependencies": [],
+            "details": "Implement Zod schemas: PostSchema, CommentSchema, RunMetaSchema, RunResultSchema, and RunConfigSchema. Types: Post { id: string; subreddit: string; title: string; body: string; upvotes: number; timestamp: number; flair?: string|null; permalink: string; author?: string|null; awardsCount?: number; commentsCount?: number }. Comment { id: string; postId: string; body: string; upvotes: number; timestamp: number; permalink: string }. RunResult { posts: Post[]; comments: Comment[]; errors: {message: string; code?: string; at?: number}[]; meta: { limits: { maxPosts: number; maxComments?: number }; source: string; startedAt: number; duration: number } }. Define SSE wire payload schemas for {type: 'post'|'comment'|'error'|'progress'|'done', data: unknown}. Export isPost/isComment/isRunResult type guards and safeParse helpers. Add light index types: PostIndexEntry { id: string; chunk: number; subreddit: string; upvotes: number; ts: number } and CommentIndexEntry { id: string; chunk: number; postId: string; upvotes: number; ts: number }.",
+            "status": "pending",
+            "testStrategy": "Unit tests: schema happy/edge cases, optional fields, numeric coercion rejection, and guard functions return types. Snapshot sample payloads through Zod to ensure strictness."
+          },
+          {
+            "id": 2,
+            "title": "Build sanitization, deduplication, and time-range filter utilities",
+            "description": "Implement helpers to normalize text, remove HTML, decode entities, dedupe by id/permalink, and apply post-collection time filters.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create functions: sanitizeText(s: string): string using DOMParser to strip tags and a textarea to decode entities; normalize whitespace and trim. sanitizePost/sanitizeComment apply sanitizeText to title/body and ensure permalink normalization. Implement deDupePosts(posts: Post[]): Post[] and deDupeComments(comments: Comment[]): Comment[] using Set of ids and fallback to permalink key; prefer latest timestamp when duplicates appear. Implement applyTimeFilter<T extends {timestamp:number}>(items: T[], from?: number, to?: number): T[]; ensure inclusive bounds and stable ordering. Provide combineAndSanitize incoming incremental batches with dedupe before storage to minimize churn.",
+            "status": "pending",
+            "testStrategy": "Unit tests: HTML stripped and entities decoded; Unicode preserved. Dedupe keeps most recent by timestamp. Time-range filter edge cases: boundaries, empty range, all excluded."
+          },
+          {
+            "id": 3,
+            "title": "Implement memory store with chunking and IndexedDB spillover using idb-keyval",
+            "description": "Create a storage layer that holds data in memory until a threshold, then writes chunks to IndexedDB while keeping lightweight indexes in memory.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Create RunStore(runId: string, opts?: {postThreshold?: number; commentThreshold?: number; chunkSize?: number}). Defaults: threshold posts=600, comments=2000, chunkSize=200. Methods: addPosts(batch: Post[]): Promise<void>; addComments(batch: Comment[]): Promise<void>; addErrors(errs: ErrorLike[]): void; getBatch(type: 'posts'|'comments', n: number): Promise<(Post|Comment)[]>; iterateBatches(type, start?: number): AsyncGenerator<(Post|Comment)[]>; getCounts(): {posts: number; comments: number}; getIndexes(): {posts: PostIndexEntry[]; comments: CommentIndexEntry[]}; clear(): Promise<void>. Behavior: keep raw arrays until threshold; when exceeded, flush current raw arrays into chunk N at key `${runId}:posts:${N}`/`${runId}:comments:${N}` with idb-keyval set, build and retain in-memory indexes {id, chunk, ts,...}, then drop raw arrays to free memory. Ensure chunk writes are atomic (write then swap). On getBatch, fetch from memory if present else from IndexedDB, with simple LRU cache for the last 2 chunks. Namespaced keys per runId; clear() removes all keys for run. Include size estimation to decide early flush. All writes/reads guarded against concurrent calls.",
+            "status": "pending",
+            "testStrategy": "Memory tests with 800 posts and 3 chunks: verify memory stays below threshold by inspecting window.performance.memory (where available) or via object size estimates; verify retrieval order and counts; persistence across page focus changes; clear() removes keys."
+          },
+          {
+            "id": 4,
+            "title": "Implement run controller with SSE orchestration, batching, progress, and safety filters",
+            "description": "Create startRun(config) that connects to /api/collect via EventSource, aggregates sanitized data, respects memory guard, yields batches, and applies post-collection time filter.",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "details": "API: startRun(config: RunConfig): RunController. RunController exposes onProgress(fn), onBatch(type, fn), onError(fn), cancel(), getBatch(type, n), finalize(): Promise<RunResult>. Implementation: open EventSource('/api/collect?...'); parse events with schemas; for post/comment events -> sanitize via utilities, dedupe within a small sliding window, and store via RunStore.addPosts/addComments; periodically flush batches to subscribers (e.g., every 100 items or 750ms). Maintain progress state from 'progress' events and emit to UI. Reconnection: if SSE closes before 'done', retry with exponential backoff (up to N retries) and a cursor param (last timestamp/id). On 'done': close SSE, apply uniform post-collection time filter using applyTimeFilter to both posts and comments, rebuild filtered indexes if needed, and compute meta.duration. Build RunResult { posts, comments, errors, meta } by reading all chunks (stream to consumer if large to avoid huge arrays) and attach limits/source/startedAt/duration. Provide cleanup hooks to RunStore.clear on cancel or when caller triggers export/reset. Ensure error aggregation from 'error' events and internal exceptions.",
+            "status": "pending",
+            "testStrategy": "Integration tests with mocked SSE (MSW): streaming posts, intermittent disconnects, and resume via cursor; verify batches delivered in order and progress updates. Time filter verified after 'done'. Error aggregation collected and exposed. getBatch returns expected items for mixed in-memory/IndexedDB states."
+          },
+          {
+            "id": 5,
+            "title": "Integrate public API, cleanup lifecycle, and developer documentation",
+            "description": "Expose the controller and store as a cohesive module, wire cleanup on export/reset, and document usage and extension points.",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "Create an index module exporting types, schemas, utilities, RunStore, and startRun. Provide configuration defaults and hooks for analytics/LLM batch consumers. Implement cleanup on export/reset: controller.finalize then RunStore.clear and detach listeners; ensure idempotency. Add TypeDoc comments and a short README: architecture, thresholds, chunking details, key naming in IndexedDB, how to consume batches via callbacks or AsyncIterator, and how to handle cancellations. Provide example snippet that pipes getBatch into analytics. Include small demo harness dev page that shows progress bar and memory mode (RAM vs IndexedDB).",
+            "status": "pending",
+            "testStrategy": "Smoke tests in the app sandbox: run a small and a large (800+ posts) collection, export data, and verify cleanup frees memory and IndexedDB keys. Documentation examples compile in TS. Public API is tree-shakeable and types resolve."
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Local analytics: keyword frequency, timelines, and distributions",
+        "description": "Implement client-side analytics for basic charts: keyword frequency, sentiment distribution (fast heuristic), upvote distribution, and time-based frequency.",
+        "details": "Tokenization: use simple tokenizer with stopword removal (stopwords-en) and stemming (wink-porter2-stemmer) to build term frequencies from titles+bodies. Generate keyword table filtered by LLM-expanded keywords if provided. Sentiment: use vader-sentiment for per-post polarity scores mapped to {neg, neu, pos}; later LLM will interpret. Upvote distribution: histogram bins (e.g., 0-10, 11-50, etc.). Timeline: bucket by month from timestamps. Outputs stored in AnalyticsResult { termFreq[], sentimentCounts, upvoteHistogram[], timeline[] }. Pseudo-code:\n- function buildTermFreq(posts){ for p of posts: for token of tokens(p.title+' '+p.body): if(!isStop(token)) freq[token]++ }\n- function sentimentForPosts(posts){ return posts.map(p => ({ id:p.id, s: vader.SentimentIntensityAnalyzer.polarity_scores(p.body||p.title) })) }\n- function timeline(posts){ group by YYYY-MM; count }\n- function histogram(vals){ compute bins }",
+        "testStrategy": "Unit: tokenizer/stopword correctness; sentiment mapping thresholds; histogram math. Property tests: frequencies sum equals total token count after filters. Performance test on 800 posts completes <1s on mid-tier laptop. Deterministic outputs with seeded input.",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up analytics module scaffolding, types, constants, and dependencies",
+            "description": "Create the analytics module structure, define TypeScript types, constants, and install required libraries.",
+            "dependencies": [],
+            "details": "Install deps: npm i wink-porter2-stemmer stopwords-en vader-sentiment. Create src/lib/analytics/{types.ts, constants.ts, index.ts}. Define types: Post { id:string|number; title:string; body?:string; upvotes?:number; timestamp?:string|number|Date }, TermFreq { term:string; count:number }, SentimentCounts { neg:number; neu:number; pos:number }, HistogramBin { label:string; min:number; max:number|null; count:number }, TimelinePoint { month:string; count:number }, AnalyticsResult { termFreq:TermFreq[]; sentimentCounts:SentimentCounts; upvoteHistogram:HistogramBin[]; timeline:TimelinePoint[] }. Define constants: SENT_POS=0.05, SENT_NEG=-0.05; DEFAULT_UPVOTE_BINS=[0,10,50,100,250,500,1000,Infinity]. Export function signatures to implement: buildTermFreq(posts, opts), sentimentForPosts(posts), buildSentimentDistribution(posts), buildTimeline(posts), buildUpvoteHistogram(values, bins), computeAnalytics(posts, opts). Ensure pure functional API and no side effects.",
+            "status": "pending",
+            "testStrategy": "Type compilation passes. Constants exported and match spec. Lint and tree-shake check: no accidental node-only APIs used."
+          },
+          {
+            "id": 2,
+            "title": "Implement tokenizer and term frequency with stopword removal and stemming",
+            "description": "Build tokenization pipeline and compute term frequencies from titles and bodies with optional keyword filtering.",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement tokenize(text,{minLen=2}) that lowercases, strips punctuation via regex /[^a-z0-9]+/i, splits into tokens, filters tokens with length<minLen, and removes stopwords from stopwords-en. Stem using wink-porter2-stemmer. Implement buildTermFreq(posts,{keywordsFilter?:string[]}) that concatenates (title+' '+(body||'')), tokenizes, stems, and counts. If keywordsFilter provided, stem and lowercase the filter terms first and include only tokens that exist in the stemmed filter set. Return sorted array by count desc then term asc. Ensure deterministic behavior and stable sorting. Expose helper normalizeForFilter(str) to map raw keywords to stemmed form used for filtering.",
+            "status": "pending",
+            "testStrategy": "Unit: tokenization removes stopwords and stems (e.g., 'Running'->'run'). Property: sum(termFreq.count) equals token count after filters across all posts. Filtering: given ['battery life'] ensure only 'batteri' and 'life' stems remain. Determinism: same input yields same order."
+          },
+          {
+            "id": 3,
+            "title": "Implement sentiment scoring and distribution via VADER",
+            "description": "Compute per-post sentiment using VADER and aggregate to neg/neu/pos counts using fixed thresholds.",
+            "dependencies": [
+              1
+            ],
+            "details": "Use vader-sentiment to compute polarity_scores on (post.body || post.title). Map by compound score: compound<=SENT_NEG -> neg, compound>=SENT_POS -> pos, else neu. Implement sentimentForPosts(posts) -> { id, scores }[] for potential future use. Implement buildSentimentDistribution(posts) -> SentimentCounts by iterating once and tallying. Handle missing/empty text by skipping or treating as neu; choose to treat empty as neu for stability. Ensure no DOM APIs are used for client bundling. Document thresholds in constants.ts.",
+            "status": "pending",
+            "testStrategy": "Unit: sentences like 'I love this' -> pos, 'I hate this' -> neg, 'It is a device' -> neu. Boundary tests at exactly -0.05 and 0.05 map correctly. Null/empty body falls back to title; both empty -> neu."
+          },
+          {
+            "id": 4,
+            "title": "Implement time-based monthly timeline and upvote histogram utilities",
+            "description": "Create functions to bucket posts by UTC month and to compute upvote histograms using defined bins.",
+            "dependencies": [
+              1
+            ],
+            "details": "Timeline: buildTimeline(posts) that parses timestamp (Date | number | ISO string) into UTC, formats YYYY-MM, groups and counts, returns sorted TimelinePoint[] ascending by month. Skip invalid timestamps. Upvotes: buildUpvoteHistogram(values:number[], bins=DEFAULT_UPVOTE_BINS) that walks each value, finds first threshold where v<=threshold (Infinity allowed), and tallies. Produce labels like '0–10','11–50',...,'1001+' using previous+1 to upper bound inclusive. Define inclusive upper bounds (e.g., 0–10 includes 10). Ensure stable order equals bin order. Export helper formatBinLabels(bins:number[]) to generate labels aligned with logic.",
+            "status": "pending",
+            "testStrategy": "Unit: histogram places 0,10 in first bin and 11 in second; Infinity bin collects >1000. Timeline: dates around month boundaries UTC behave correctly; invalid dates excluded. Sorting verified ascending."
+          },
+          {
+            "id": 5,
+            "title": "Integrate computeAnalytics orchestrator and performance validations",
+            "description": "Wire all parts into a single computeAnalytics(posts, options) that returns AnalyticsResult efficiently and deterministically.",
+            "dependencies": [
+              2,
+              3,
+              4
+            ],
+            "details": "Implement computeAnalytics(posts,{keywordsFilter?, upvoteBins?, minTokenLength?}={}) that: 1) builds termFreq with optional keyword filter and min token length; 2) computes sentimentCounts via buildSentimentDistribution; 3) computes upvoteHistogram from available upvotes (default 0 when missing or filter them out—choose to treat missing as 0 and document); 4) builds timeline from timestamps. Return AnalyticsResult { termFreq, sentimentCounts, upvoteHistogram, timeline }. Ensure pure functions, no hidden state, and stable sorting. Optimize: single pass over posts to collect raw text, upvotes, and timestamps to minimize allocations; keep arrays pre-sized where possible. Document big-O and expected runtime; target <1s for ~800 posts on mid-tier laptop. Add simple memoization hook optional (off by default) keyed by JSON-stable hash if needed later.",
+            "status": "pending",
+            "testStrategy": "Integration test with seeded posts: verify structure, sums, and determinism. Performance: run on 800 mocked posts and assert elapsed <1000ms in CI-friendly environment. Property: total histogram count equals number of posts with upvote parsed; timeline sum equals posts with valid timestamps; termFreq invariants hold."
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Grounded summarization and insights generation",
+        "description": "Create pipelines that transform collected excerpts into narrative summaries, bullet insights, controversies, and keyword explanations with strict citation grounding and token budgeting.",
+        "details": "Implement: 1) Excerpt selector: choose top-N representative posts by upvotes/recency/diversity; extract short quotes with postId and permalink. 2) Chunker to fit token budget (<25k tokens per run across calls). 3) Summarize function invokes OpenAI with structure: { narrative, bulletPoints[], controversies[], themes[], citations[] }. 4) Safety: prohibit invention by requiring quotes-only support; instruct to answer 'insufficient evidence' when needed. Pseudo-code:\n- function selectExcerpts(posts, n=120){ /* greedy cover by subreddit & time, cap quote length */ }\n- async function generateReport(key, excerpts, analytics){\n  const sys = `You are summarizing Reddit content. Only use provided quotes. Always cite with postId and permalink.`\n  const user = JSON.stringify({ excerpts, analytics });\n  const res = await client.chat.completions.create({ model:'gpt-4o-mini', response_format:{type:'json_object'}, messages:[{role:'system',content:sys},{role:'user',content:user}] });\n  return JSON.parse(res.choices[0].message.content);\n}\n- Merge multi-chunk results into final report; de-duplicate citations.",
+        "testStrategy": "Golden tests with fixed excerpts ensure deterministic structure. Verify that removing a quote removes corresponding claim (negative test). Token-budget tests: large excerpt sets split into multiple calls without exceeding limits. Manual QA: check that all claims have citations and permalinks open correctly.",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Define grounded report types, safety prompt templates, and validation helpers",
+            "description": "Create TypeScript types for excerpts, citations, and final report. Add prompt templates enforcing quotes-only grounding and an \"insufficient evidence\" default.",
+            "dependencies": [],
+            "details": "Implement types: Excerpt { postId, subreddit, timestamp, upvotes, permalink, quote }. Report { narrative, bulletPoints, controversies, themes, citations }. Citations are objects { postId, permalink, quote }. Decide citation markers: require model to embed markers like [c:1],[c:2] that map to citations[] indices. Build JSON schema (Zod or TypeBox) for strict parsing. Create system and developer prompts that prohibit invention, require every claim to include at least one [c:N], and instruct to answer \"insufficient evidence\" if no support. Provide helper validateGrounding(report, providedExcerpts) to check all markers resolve to citations derived from provided excerpts and no foreign URLs/postIds.",
+            "status": "pending",
+            "testStrategy": "Unit: schema validates correct/incorrect payloads. Snapshot: system prompt contains grounding, markers rules, and insufficient-evidence instruction. Validation: given a sample report, ensure every [c:N] maps to a citation derived from provided excerpts; fail when markers or citations are missing."
+          },
+          {
+            "id": 2,
+            "title": "Implement excerpt selector with upvote/recency/diversity coverage and quote extraction",
+            "description": "Build selectExcerpts(posts, n=120) that picks representative posts across subreddits and time bins, extracting short quotes with postId and permalink.",
+            "dependencies": [
+              1
+            ],
+            "details": "Scoring: score = normUpvotes*0.6 + recencyScore*0.4. Diversity: bucket posts by subreddit and by time (e.g., weekly bins). Perform round-robin greedy selection across (subreddit,timeBin) to cover many bins while honoring score order. Quote extraction: prefer title sentence; fallback to the highest-signal sentence in body (limit 240 chars, preserve original text). Sanitize whitespace, strip URLs except the Reddit permalink. Ensure each excerpt includes {postId, permalink, quote}. Avoid duplicates by hashing normalized quote text. Return up to n excerpts; include metadata needed by chunker (length, tokens estimate placeholder).",
+            "status": "pending",
+            "testStrategy": "Unit: given synthetic posts across 3 subs and 4 time bins, selection covers bins evenly. Quote length capped ≤240 chars and contains postId+permalink. Dedupe: repeated identical quotes from the same post collapse to one. Tie-breaking deterministic via stable sort by (score, timestamp, id)."
+          },
+          {
+            "id": 3,
+            "title": "Implement token budgeter and chunking to keep total <25k tokens per run",
+            "description": "Estimate token usage and split excerpts into per-call chunks while enforcing a global token budget across calls.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Use tiktoken (or compatible) for the target model to estimate tokens for system prompt, user JSON, and expected output. Implement BudgetManager with config { total: 25000, perCall: 6500, reserve: 800 }. Function planChunks(excerpts, analytics, budget)->ChunkPlan that groups excerpts so each call stays under perCall and cumulative estimated usage ≤ total-reserve. Trim analytics to minimal fields per chunk. Provide estimate reconciliation: after each API response, subtract actual usage (if available) from remaining budget; if budget exhausted mid-run, stop and mark remaining as unprocessed. Expose chunkExcerpts(...) that returns [{excerpts, analytics, planId}].",
+            "status": "pending",
+            "testStrategy": "Token-budget tests with 1k+ excerpts: verify planned chunks never exceed perCall and cumulative estimate ≤ total. Edge: reduce n or drop lowest-scoring excerpts when total budget would be exceeded; emits BUDGET_EXCEEDED state. Deterministic planning given fixed inputs."
+          },
+          {
+            "id": 4,
+            "title": "Implement summarize function calling OpenAI with strict JSON response and guardrails",
+            "description": "Create generateReport(key, excerpts, analytics) that calls the model per chunk, enforces JSON structure, retries on failure, and rejects unsupported claims.",
+            "dependencies": [
+              1,
+              3
+            ],
+            "details": "Compose messages: system prompt from subtask 1; user content is JSON {excerpts, analytics}. Include explicit instructions: every claim must include [c:N] markers referencing citations[], citations[] must only contain provided (postId, permalink, quote), and if no support write \"insufficient evidence\". Call client.chat.completions.create with model 'gpt-4o-mini' and response_format {type:'json_object'}. Parse and validate via schema; if invalid, perform one repair pass with a concise validator prompt or local fixer to remove unsupported lines or add missing markers using nearest matching excerpt. Implement exponential backoff for 429/5xx with jitter. Return a typed ChunkReport.",
+            "status": "pending",
+            "testStrategy": "Integration with mocked OpenAI: valid JSON and markers returned; invalid response triggers one repair and then success. Safety: when excerpts lack support for a prompted theme, output contains \"insufficient evidence\". Backoff test ensures 429 is retried with capped attempts and logs."
+          },
+          {
+            "id": 5,
+            "title": "Merge multi-chunk results, de-duplicate citations, and finalize grounded report",
+            "description": "Combine chunk reports into a single narrative, bullets, controversies, themes; de-duplicate citations; validate grounding and prune unsupported content.",
+            "dependencies": [
+              2,
+              3,
+              4
+            ],
+            "details": "Implement mergeChunkReports(reports): 1) Concatenate narratives with connective sentences; optionally compress via a lightweight local reducer that only reorders text and never adds claims. 2) Merge bulletPoints, controversies, themes with stable dedupe using text+citation marker signature. 3) Deduplicate citations by (postId, permalink, quote) and rebuild [c:N] indices in all texts to map to the new citations[]. 4) Run validateGrounding to ensure each item contains at least one valid [c:N]; if not, replace text with \"insufficient evidence\" or drop per policy. 5) Output final Report object suitable for UI. Provide deterministic sort to keep snapshots stable.",
+            "status": "pending",
+            "testStrategy": "Golden tests: fixed excerpts -> stable final JSON with exact fields. Negative test: remove a quoted excerpt used by a bullet -> that bullet is dropped or replaced with \"insufficient evidence\" and citations remapped. Token test: merging does not inflate tokens beyond a soft cap; citation list is deduped and indices consistent."
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Theme Mode clustering with embeddings and LLM labels",
+        "description": "Implement Theme Mode: compute embeddings for posts, cluster them (k-means), generate human-readable cluster labels via LLM, and compute sentiment per cluster with timeline trends.",
+        "details": "Client flow for a single subreddit within limits. Steps: 1) Select candidate posts (sample up to 600). 2) Get embeddings via text-embedding-3-small for title+body. 3) k-means (ml-kmeans) with k determined via elbow method between 3-10. 4) For each cluster, pick top representative posts (centroid nearest 5), create summary label via labelCluster(). 5) Compute sentiment counts per cluster (from Task 6). 6) Build per-cluster timelines. Output: ClusterResult[] { label, postIds[], sentimentDist, topPosts[], keywords[] }. Pseudo-code:\n- const X = await embedTexts(key, posts.map(p=>p.title+'\\n'+(p.body||'')))\n- const { clusters, centroids } = kmeans(X, k)\n- for each cluster: reps = nearestToCentroid(Xc, centroids[c])\n- label = await labelCluster(key, reps.map(r=>({id:r.id, quote:shorten(posts[r.id])})))",
+        "testStrategy": "Unit: k selection heuristic outputs k within 3-10. Determinism: with fixed seed, clustering stable. Integration: mock embeddings to validate flow. Validate that labels reference only cluster posts. Performance: embeddings chunked to avoid timeouts; clustering completes under acceptable time (<5s for 600 posts).",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement candidate post selection and text normalization for Theme Mode",
+            "description": "Select up to 600 candidate posts and prepare normalized texts for embeddings by combining title and body with deterministic sampling.",
+            "dependencies": [],
+            "details": "Create prepareThemeCandidates(posts, opts) that: (a) filters posts with non-empty title or body, (b) sorts deterministically (e.g., by score desc then created_utc asc), (c) uniformly samples down to 600 if over limit, (d) builds text as `${title}\\n${body||''}`, strips URLs/markdown, collapses whitespace, trims to max ~6,000 chars to fit embedding limits, (e) deduplicates by normalized text hash, and (f) returns {candidates, texts, idByIndex, createdAtByIndex}. Ensure stable ordering with a fixed seed if random sampling is used.",
+            "status": "pending",
+            "testStrategy": "Unit: verify deterministic selection given same input/seed; verify dedup removes duplicates; verify text normalization strips URLs/markdown and preserves meaningful content. Property: all returned texts map 1:1 to candidates. Performance: process 1,000 posts in <100ms locally."
+          },
+          {
+            "id": 2,
+            "title": "Compute and cache embeddings with batching, retries, and concurrency limits",
+            "description": "Call OpenAI text-embedding-3-small for prepared texts with batching and local caching to avoid re-embedding unchanged posts.",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement embedTexts(apiKey, texts, {batchSize=100, concurrency=2, model='text-embedding-3-small'}) that: (1) looks up per-text cache by key hash(postId||text)+model+v, (2) batches remaining texts, (3) calls openai.embeddings.create with retries (exponential backoff on 429/5xx), (4) converts output to Float32Array vectors, (5) emits progress callbacks, (6) stores results to a pluggable cache (IndexedDB/localStorage fallback), and (7) returns vectors aligned to input order and a map index->postId. Include AbortController support and guardrail for total timeouts.",
+            "status": "pending",
+            "testStrategy": "Integration with MSW: mock embeddings endpoint to validate batching, ordering, and retry behavior. Unit: cache hit avoids network call; vectors array length equals texts length. Performance: 600 texts across 2 concurrent batches completes within acceptable time in mock. Error: abort cancels in-flight requests cleanly."
+          },
+          {
+            "id": 3,
+            "title": "Determine optimal k (3–10) via elbow heuristic and run seeded k-means clustering",
+            "description": "Choose k between 3 and 10 using SSE elbow and cluster embeddings with deterministic initialization.",
+            "dependencies": [
+              2
+            ],
+            "details": "Add chooseK(vectors, {kMin=3,kMax=10}) computing SSE for each k and selecting the elbow via maximum second derivative or largest relative drop; fallback to k=5 if flat. Normalize vectors to unit length so Euclidean approximates cosine. Run ml-kmeans with options {k, initialization:'kmeans++', seed:42, maxIterations:100}. Return {labelsPerIndex, clusters: index[][], centroids, distancesPerIndex}. Keep mapping index->postId from step 2 for later use. Validate input size >= k.",
+            "status": "pending",
+            "testStrategy": "Unit: synthetic blobs yield k within 3–10 and correct cluster assignments; fixed seed yields identical labels across runs. Property: sum of cluster sizes equals N; no index lost or duplicated. Performance: 600 vectors cluster in <2s on dev machine."
+          },
+          {
+            "id": 4,
+            "title": "Select representative posts, call labelCluster() for human-readable labels, and extract keywords",
+            "description": "For each cluster, pick nearest-to-centroid representatives, call LLM labelCluster() to generate concise labels, and compute per-cluster keywords.",
+            "dependencies": [
+              3
+            ],
+            "details": "Implement getRepresentatives(vectors, centroids, clusters, {topN=5}) to compute distances and pick topN indices nearest to centroid. Build excerpts [{id, quote}] with trimmed title/body snippets (e.g., 240–320 chars each). Use Task 2’s labelCluster(excerpts) with grounding: prompt forbids external info and requires a concise <=80 char label. Rate-limit/concurrent calls (e.g., 1–2 at a time) and add retries. For keywords[], compute top 5–10 terms via TF-IDF or normalized term frequency within cluster using stopwords-en and stemming (consistent with Task 6), then detokenize to readable keywords and dedupe.",
+            "status": "pending",
+            "testStrategy": "Integration: mock labelCluster responses; verify only cluster excerpts are sent and labels returned per cluster. Unit: representative selection returns exactly topN and is stable. Keyword extraction excludes stopwords and short tokens; snapshot expected keywords for a fixture cluster."
+          },
+          {
+            "id": 5,
+            "title": "Aggregate sentiment and timelines per cluster and assemble final ClusterResult[]",
+            "description": "Combine clusters with sentiment counts and timeline trends, then return the final results for UI consumption.",
+            "dependencies": [
+              4
+            ],
+            "details": "Implement buildClusterResults(inputs) that: (a) aggregates sentimentDist per cluster using per-post sentiment from Task 6 (fallback to neutral if missing), (b) builds per-cluster timeline series (e.g., weekly or monthly buckets from created_utc) with counts over time, (c) assembles ClusterResult[] with {label, postIds[], sentimentDist, topPosts[], keywords[]} and includes timeline/trend metadata for charts, (d) sorts clusters by size or label for stable UI, and (e) validates shape before returning. Provide TypeScript types and a single orchestrator runThemeMode(posts, apiKey) that wires steps 1–4 and returns results.",
+            "status": "pending",
+            "testStrategy": "End-to-end with fixtures: mock embeddings and labels to produce stable outputs; assert ClusterResult[] shape, that union of all postIds equals input candidate ids, and sentimentDist sums match per-cluster post counts. Timeline sanity: non-decreasing bucket order and total equals cluster size. Performance: full pipeline on 600 posts finishes <5s in mock."
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "Results UI (tabs, charts, sources, quick ask)",
+        "description": "Build the results interface with tabs (Summary, Themes, Stats, Sources), Recharts-based visuals, controversy section, and a Quick Ask pathway with reduced scraping limits.",
+        "details": "Use Recharts for charts: BarChart (keyword frequency), PieChart (sentiment), AreaChart (timeline), Histogram for upvotes. Summary tab renders narrative and bullet points with cited quotes (hover shows quote). Themes tab shows cluster cards with labels, sentiments, top posts. Stats tab shows charts. Sources tab lists all posts with filters by subreddit and date, and direct permalinks. Quick Ask: toggle from input screen triggers run with maxPosts~60, comments off, single summarized report. Implement skeleton loaders and persistent export bar. Pseudo-code React snippets:\n- <Tabs items={['Summary','Themes','Stats','Sources']} />\n- <BarChart data={termFreq.slice(0,20)}> ... </BarChart>\n- <PieChart data={sentimentCounts}/> \n- <AreaChart data={timeline}/> \n- <ResultsActions> Export buttons </ResultsActions>",
+        "testStrategy": "Visual regression tests for charts with mocked data. E2E: run a mocked flow to see populated tabs. Accessibility: tab order, ARIA roles, keyboard nav. Verify Quick Ask uses reduced limits and still renders a minimal summary.",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Scaffold Results page with accessible tabs, skeleton loaders, and persistent export bar",
+            "description": "Create the Results route and page-level layout with tabs (Summary, Themes, Stats, Sources), skeleton states, and a sticky export actions bar.",
+            "dependencies": [],
+            "details": "Implement /results route (Next.js/React) with <Tabs items={['Summary','Themes','Stats','Sources']}/> and ARIA roles (tablist, tab, tabpanel) plus keyboard navigation (Left/Right, Home/End). Add <ResultsActions/> as a sticky footer/header that persists across tab switches. Wire to run controller store to drive loading/progress. Provide skeleton loaders for each tab panel and empty-state placeholders. Establish a shared Theme/Colors config for charts and badges.",
+            "status": "pending",
+            "testStrategy": "Accessibility tests for tabs (ARIA roles, keyboard nav). Snapshot/visual tests for skeletons and sticky export bar. Route-level test verifies export bar persists across tab changes."
+          },
+          {
+            "id": 2,
+            "title": "Build Summary tab with narrative, bullet insights, citations hover quotes, and controversies section",
+            "description": "Render narrative summary and bullets with citation markers that show quoted evidence on hover, plus a controversies subsection.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create <SummaryTab data={summaryData}/> consuming outputs from summarization (narrative, bulletPoints[], citations[], controversies[]). Render bullets with superscript citation markers; on hover/focus show a tooltip/popover with the exact quote and source permalink. Add a Controversies section listing items with inline evidence counts and links to sources. Handle missing data (Quick Ask minimal) gracefully. Ensure claims without citations are not rendered. Include copy/export hooks to ResultsActions.",
+            "status": "pending",
+            "testStrategy": "Unit tests assert bullets render only when citation ids exist; hovering/focusing a citation shows the correct quote tooltip. Visual regression for layout with mocked data. Keyboard navigation reaches citation popovers. E2E smoke loads Summary with mocked store data."
+          },
+          {
+            "id": 3,
+            "title": "Implement Themes tab with cluster cards (labels, sentiments, top posts) and drill-in modal",
+            "description": "Display cluster cards with LLM-generated labels, sentiment chips, top representative posts, and optional timeline sparkline per cluster.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create <ThemesTab clusters={clusterResults}/> where each card shows: label, post count, sentiment distribution (chips/bars), top 3–5 posts with titles/permalinks, and a small sparkline timeline. Provide a ‘View details’ modal for the full cluster (all top posts, quotes). Support sorting (size, positive/negative). Handle empty or partial cluster data. Ensure cards are responsive and keyboard accessible. Reuse color tokens consistent with Stats charts.",
+            "status": "pending",
+            "testStrategy": "Render with mocked ClusterResult[] and assert counts, labels, and sentiment chips. Interaction test opens/closes modal and lists expected posts. Visual regression for card grid across breakpoints."
+          },
+          {
+            "id": 4,
+            "title": "Build Stats tab with Recharts (keyword BarChart, sentiment PieChart, timeline AreaChart, upvote histogram)",
+            "description": "Create responsive charts for term frequency, sentiment distribution, timeline activity, and upvote histogram using Recharts.",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement <StatsTab stats={statsData}/> with: BarChart for top 20 keyword frequencies, PieChart for sentimentCounts, AreaChart for timeline activity, and a histogram for upvotes using d3-array binning piped into a BarChart. Add tooltips, legends, axis labels, and responsive containers. Provide no-data fallbacks and loading skeletons. Ensure color palette and formatting are consistent. Support export (PNG/SVG) via ResultsActions hooks.",
+            "status": "pending",
+            "testStrategy": "Visual regression tests with mocked data for all four charts. Unit test histogram binning logic with fixed inputs. Interaction tests for legend toggles and tooltip formatting. Accessibility audit of chart descriptions."
+          },
+          {
+            "id": 5,
+            "title": "Implement Sources tab with filters and integrate Quick Ask pathway with reduced run limits",
+            "description": "List all source posts with subreddit/date filters and permalinks, and wire a Quick Ask toggle from input to run with reduced limits (maxPosts≈60, comments off).",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Create <SourcesTab posts={posts}/> with virtualized list, filter controls (subreddit multi-select, date range), and direct permalinks. Add badges for flair/upvotes and open-in-new behavior. Integrate Quick Ask: from input screen, add a toggle that sets runConfig {maxPosts:60, include:{comments:false}, mode:'singleSummary'}. Pass a query flag (e.g., ?quickAsk=1) or state to Results page; show minimal tabs (Summary+Sources) until other data arrives. Ensure skeletons show during run and export bar remains available. Validate run config is forwarded to controller and collector.",
+            "status": "pending",
+            "testStrategy": "E2E: toggle Quick Ask, start run, verify request payload enforces limits and minimal Summary renders. Unit tests for filter logic (subreddit/date). Integration test ensures permalinks open correctly and virtualization renders expected rows."
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Exporters: CSV, JSON, and PDF report",
+        "description": "Implement client-side exporters to download raw and processed data (CSV/JSON) and a PDF report containing summaries, key charts, and sources.",
+        "details": "CSV: use papaparse to create 1) raw_posts.csv, 2) analytics.csv (keyword freq, sentiment counts), 3) clusters.csv. JSON: full structured RunResult + AnalyticsResult + LLM outputs. PDF: html2canvas + jsPDF to capture a print-styled summary view (A4/Letter), include charts as data URLs, narrative, themes, and source list with permalinks. Ensure large downloads stream-safe and include UTF-8 encoding. Pseudo-code:\n- function exportCSV(name, rows){ const csv = Papa.unparse(rows); download(`${name}.csv`, csv) }\n- function exportJSON(obj){ download('readit_export.json', JSON.stringify(obj)) }\n- async function exportPDF(){ const node = document.getElementById('report'); const canvas = await html2canvas(node); const img = canvas.toDataURL('image/png'); const pdf = new jsPDF('p','mm','a4'); pdf.addImage(img,'PNG',0,0,210,0); pdf.save('readit_report.pdf'); }",
+        "testStrategy": "Unit: CSV column correctness and encoding. JSON schema validation before download. PDF: snapshot pixel diff with fixed data; verify charts render and text is selectable where possible. Large data test: 800 posts export under 10s. File size under practical limits or warn user.",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Build stream-safe download and encoding utilities (base for CSV/JSON/PDF)",
+            "description": "Create reusable browser-side helpers for saving files with UTF-8 encoding and streaming support for large downloads.",
+            "dependencies": [],
+            "details": "Implement saveBlob(name, blob) using anchor+ObjectURL as default. Add chooseSaveStrategy(sizeHint) to select between Blob save, File System Access API, or StreamSaver when available. Provide saveText(name, text, mime, {withBOM}) inserting UTF-8 BOM for CSV. Provide saveStream(name, readableStream, mime) with progress callbacks and AbortSignal support. Feature-detect CompressionStream, File System Access API, and fall back gracefully. Expose helpers used by CSV, JSON, and PDF exporters. Add filename sanitizer and extension normalizer.",
+            "status": "pending",
+            "testStrategy": "Unit: mock StreamSaver/File System Access API and verify strategy selection by size thresholds. Verify BOM insertion for CSV. Progress and abort behavior tested with fake timers and mocked streams. Cross-browser smoke tests in CI (Chromium/Firefox/WebKit)."
+          },
+          {
+            "id": 2,
+            "title": "Implement CSV exporters for raw posts, analytics, and clusters using PapaParse with chunked output",
+            "description": "Create export functions for raw_posts.csv, analytics.csv, and clusters.csv with correct columns, escaping, and UTF-8 BOM.",
+            "dependencies": [
+              1
+            ],
+            "details": "Add exportRawPostsCSV(posts) mapping fields: id, subreddit, author, title, body, score, num_comments, url, permalink, created_iso. Add exportAnalyticsCSV(result) including keyword frequencies (term, stem, count) and sentiment distribution (neg, neu, pos) plus totals. Add exportClustersCSV(clusters) with clusterId, label, postId, permalink, sentiment, distance/score if available. Use Papa.unparse for small/medium datasets; for very large row counts, build a generator that batches rows into strings and writes via saveStream to avoid memory spikes. Ensure CRLF newlines, proper quoting, and prepend BOM. Filenames: raw_posts.csv, analytics.csv, clusters.csv.",
+            "status": "pending",
+            "testStrategy": "Unit: verify headers, row counts, quoting of commas/quotes/newlines, CRLF line endings, and BOM presence. Property test: values round-trip when reopened. Performance: 800+ posts complete under 10s and without OOM. Manual open in Excel/Numbers to spot encoding issues."
+          },
+          {
+            "id": 3,
+            "title": "Create JSON exporter for full RunResult + AnalyticsResult + LLM outputs with schema validation and streaming",
+            "description": "Provide a safe, validated JSON export of the full analysis payload with optional compression and low-memory streaming.",
+            "dependencies": [
+              1
+            ],
+            "details": "Define ExportSchema (e.g., zod/TypeBox) covering meta, runResult, analyticsResult, clusters, and llm outputs. Build composeExportPayload(state) to assemble the object. Implement safeStringify with a replacer handling undefined, NaN/Infinity, Dates, BigInt (stringify), and circular references (omit or path markers). Provide streaming stringify via ReadableStream generator writing chunks to saveStream; optionally pipe through CompressionStream('gzip') when supported and change filename to readit_export.json or readit_export.json.gz. Ensure UTF-8 encoding and deterministic key order for stability.",
+            "status": "pending",
+            "testStrategy": "Schema-validate payload before download; snapshot a small fixture. Fuzz test with optional fields missing. Large data test: 800 posts streams without blocking UI and stays within memory budget. Verify resulting file parses and matches schema. If gzip enabled, gunzip and validate."
+          },
+          {
+            "id": 4,
+            "title": "Build PDF report generator capturing summary view with charts and sources (html2canvas + jsPDF)",
+            "description": "Implement exportPDF that renders a print-styled report, embeds charts as images, paginates for A4/Letter, and includes sources with permalinks.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create/ensure a dedicated #report container with print CSS (A4/Letter variants). Wait for charts to be ready and capture them as data URLs; inline them into the report. Use html2canvas(node, {scale:2, useCORS:true, backgroundColor:'#fff'}) to get a high-DPI canvas. Initialize jsPDF('p','mm','a4' or 'letter'). If content exceeds a page, slice the canvas into page-height chunks and addImage per page. Add selectable text where feasible by drawing titles/headings via jsPDF.text, and embed fonts for UTF-8. Include narrative, themes, key charts, and a sources list with clickable permalinks. Expose exportPDF(options) with progress and cancel.",
+            "status": "pending",
+            "testStrategy": "Render a deterministic fixture report and assert PDF byte size range, page count, and first-page pixel diff within tolerance. Verify that links are clickable and text is searchable. Test both A4 and Letter. Ensure no CORS violations for chart images and that very long reports paginate correctly."
+          },
+          {
+            "id": 5,
+            "title": "Integrate exporters into UI with progress, warnings for large files, and automated E2E tests",
+            "description": "Wire up export buttons/menus, progress and error handling, and end-to-end tests covering CSV, JSON, and PDF paths.",
+            "dependencies": [
+              2,
+              3,
+              4
+            ],
+            "details": "Add Export menu with buttons: Export CSVs (three files), Export JSON (full), Export PDF (report). Optionally add Export All. Show modal with progress and ability to cancel. Warn users when estimated file sizes are large and default to streaming strategies. Provide i18n-safe filenames and ARIA labels. Log and surface errors with retry guidance. Document usage in README/help. Add telemetry hooks if applicable. Ensure integration with Analytics/Clusters data sources and that charts are ready before PDF export.",
+            "status": "pending",
+            "testStrategy": "Playwright/Cypress E2E: trigger each export, assert file presence, names, and basic content checks (CSV headers, JSON top-level keys, PDF page count). Accessibility checks for controls. Manual QA: run with ~800 posts, confirm exports under 10s and UI remains responsive. Error-path tests by forcing stream failures and verifying user feedback."
+          }
+        ]
+      }
+    ],
+    "metadata": {
+      "created": "2025-11-22T06:39:12.709Z",
+      "updated": "2025-11-22T06:39:12.710Z",
+      "description": "Tasks for master context"
+    }
+  }
+}
