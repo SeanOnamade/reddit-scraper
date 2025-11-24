@@ -6,7 +6,6 @@ import { RedditPost } from '@/lib/scraper';
 import ExportMenu from '@/components/ExportMenu';
 import {
     calculateSentimentDistribution,
-    calculateUpvoteDistribution,
     calculateActivityTimeline,
     calculateSubredditBreakdown
 } from '@/lib/analytics';
