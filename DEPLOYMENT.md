@@ -40,7 +40,7 @@ Expand the **"Environment Variables"** section and add the following:
 | `GOOGLE_CSE_ID` | `your_google_cse_id` | Required for finding Reddit posts via Google. |
 | `OPENAI_API_KEY` | `your_openai_key` | (Optional) You can set a default key here. |
 
-> **Note:** The `OPENAI_API_KEY` is optional in Vercel. If you don't set it here, you (or any user) can still enter it manually in the app's "Settings" menu, and it will be stored in the browser.
+> **Note:** The `OPENAI_API_KEY` is optional in Vercel. If you set it here, the app will use it automatically if the user hasn't provided one in Settings. This is great for a personal deployment where you don't want to enter the key every time.
 
 ## Step 5: Deploy
 

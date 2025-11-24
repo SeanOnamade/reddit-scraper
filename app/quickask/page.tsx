@@ -11,11 +11,16 @@ export default function QuickAskPage() {
     const [sources, setSources] = useState<RedditPost[]>([]);
     const [query, setQuery] = useState('');
     const [error, setError] = useState<string | null>(null);
+    const [hasServerKey, setHasServerKey] = useState(false);
     const [hydrated, setHydrated] = useState(false);
 
     // Wait for client-side hydration
     useEffect(() => {
         setHydrated(true);
+        fetch('/api/config/check')
+            .then(res => res.json())
+            .then(data => setHasServerKey(data.hasOpenAiKey))
+            .catch(err => console.error('Failed to check config:', err));
     }, []);
 
     useEffect(() => {
@@ -31,8 +36,12 @@ export default function QuickAskPage() {
 
         const runQuickAsk = async () => {
             try {
-                if (!settings.openaiKey) {
-                    throw new Error('OpenAI API key not configured. Please add it in settings.');
+                if (!settings.openaiKey && !hasServerKey) {
+                    // Wait briefly for check
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    if (!settings.openaiKey && !hasServerKey) {
+                        throw new Error('OpenAI API key not configured. Please add it in settings.');
+                    }
                 }
 
                 // Scrape 5-10 posts using streaming API

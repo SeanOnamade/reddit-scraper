@@ -5,7 +5,9 @@ export async function POST(request: Request) {
     try {
         const { subreddit, time, apiKey, analyzeImages } = await request.json();
 
-        if (!apiKey) {
+        const finalApiKey = apiKey || process.env.OPENAI_API_KEY;
+
+        if (!finalApiKey) {
             return NextResponse.json({ error: 'OpenAI API key is required' }, { status: 400 });
         }
 
@@ -108,7 +110,7 @@ export async function POST(request: Request) {
                     // Only analyze if we have a valid image URL (not just a reddit permalink)
                     if (analyzeImages && (postType === 'image' || imageUrl.match(/\.(jpg|jpeg|png|webp)$/i))) {
                         try {
-                            const openai = new OpenAI({ apiKey });
+                            const openai = new OpenAI({ apiKey: finalApiKey });
                             const imageResponse = await openai.chat.completions.create({
                                 model: "gpt-4o",
                                 messages: [
@@ -288,7 +290,7 @@ export async function POST(request: Request) {
         }
 
         // 2. Analyze with OpenAI
-        const openai = new OpenAI({ apiKey });
+        const openai = new OpenAI({ apiKey: finalApiKey });
 
         const prompt = `
         Analyze the following top posts from r/${subreddit} (Time range: ${time}).

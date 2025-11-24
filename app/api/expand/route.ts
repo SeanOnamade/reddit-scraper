@@ -5,15 +5,17 @@ export async function POST(request: NextRequest) {
     try {
         const { topic, apiKey } = await request.json();
 
-        if (!apiKey) {
+        const finalApiKey = apiKey || process.env.OPENAI_API_KEY;
+
+        if (!finalApiKey) {
             return NextResponse.json(
-                { error: 'API key required' },
+                { error: 'OpenAI API key is required' },
                 { status: 400 }
             );
         }
 
         const openai = new OpenAI({
-            apiKey,
+            apiKey: finalApiKey,
             dangerouslyAllowBrowser: false,
         });
 

@@ -9,10 +9,20 @@ export async function POST(request: NextRequest) {
     const apiKey = process.env.GOOGLE_API_KEY;
     const cseId = process.env.GOOGLE_CSE_ID;
 
+    // Use server-side OpenAI key if client key is missing
+    const finalOpenaiKey = openaiKey || process.env.OPENAI_API_KEY;
+
     if (!apiKey || !cseId) {
         return new Response(
             JSON.stringify({ error: 'Google API credentials not configured' }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
+    }
+
+    if (analyzeImages && !finalOpenaiKey) {
+        return new Response(
+            JSON.stringify({ error: 'OpenAI API key is required for image analysis' }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } }
         );
     }
 
@@ -33,7 +43,7 @@ export async function POST(request: NextRequest) {
                     cseId,
                     maxResults || maxPosts || 10,
                     analyzeImages,
-                    openaiKey,
+                    finalOpenaiKey,
                     subreddits,
                     strictSearch,
                     dateRange,

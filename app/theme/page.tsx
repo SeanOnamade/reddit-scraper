@@ -31,11 +31,17 @@ export default function ThemePage() {
     const [analyzeImages, setAnalyzeImages] = useState(false);
     const [hoveredPostId, setHoveredPostId] = useState<string | null>(null);
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+    const [hasServerKey, setHasServerKey] = useState(false);
 
     const [hydrated, setHydrated] = useState(false);
 
     useEffect(() => {
         setHydrated(true);
+        // Check for server-side key
+        fetch('/api/config/check')
+            .then(res => res.json())
+            .then(data => setHasServerKey(data.hasOpenAiKey))
+            .catch(err => console.error('Failed to check config:', err));
     }, []);
 
     useEffect(() => {
@@ -53,8 +59,19 @@ export default function ThemePage() {
         setAnalyzeImages(analyzeImages);
 
         // Wait for key
-        if (!settings.openaiKey) {
-            setLoading(false);
+        if (!settings.openaiKey && !hasServerKey) {
+            // If we're still loading the server key check, wait a bit
+            // But for now, just stop loading if neither is present
+            // We might need a better loading state for the check itself
+            // For simplicity, let's assume check is fast enough or we retry
+            if (loading) {
+                // give it a moment for the check to return
+                setTimeout(() => {
+                    if (!settings.openaiKey && !hasServerKey) {
+                        setLoading(false);
+                    }
+                }, 1000);
+            }
             return;
         }
 

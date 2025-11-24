@@ -5,11 +5,13 @@ export async function POST(request: Request) {
     try {
         const { question, posts, apiKey } = await request.json();
 
-        if (!apiKey) {
+        const finalApiKey = apiKey || process.env.OPENAI_API_KEY;
+
+        if (!finalApiKey) {
             return NextResponse.json({ error: 'OpenAI API key required' }, { status: 400 });
         }
 
-        const openai = new OpenAI({ apiKey });
+        const openai = new OpenAI({ apiKey: finalApiKey });
 
         // Create a concise prompt for quick answers
         const prompt = `Answer the following question based ONLY on these Reddit posts. Be concise but informative (2-3 paragraphs max).
