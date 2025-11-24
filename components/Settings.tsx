@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 
 interface SettingsProps {
@@ -12,6 +12,14 @@ export default function Settings({ onClose }: SettingsProps) {
     const [localKey, setLocalKey] = useState(settings.openaiKey);
     const [localMaxPosts, setLocalMaxPosts] = useState(settings.maxPosts);
     const [localResultCount, setLocalResultCount] = useState(settings.resultCount || 10);
+    const [hasServerKey, setHasServerKey] = useState(false);
+
+    useEffect(() => {
+        fetch('/api/config/check')
+            .then(res => res.json())
+            .then(data => setHasServerKey(data.hasOpenAiKey))
+            .catch(err => console.error('Failed to check config:', err));
+    }, []);
 
     const handleSave = () => {
         setSettings({
@@ -39,8 +47,16 @@ export default function Settings({ onClose }: SettingsProps) {
                             placeholder="sk-..."
                             className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
-                        <p className="text-xs text-zinc-500 mt-1">
-                            Stored locally in your browser
+                        <p className="text-xs text-zinc-500 mt-1 flex justify-between items-center">
+                            <span>Stored locally in your browser</span>
+                            {hasServerKey && (
+                                <span className="text-green-400 flex items-center gap-1">
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    Server key active
+                                </span>
+                            )}
                         </p>
                     </div>
 

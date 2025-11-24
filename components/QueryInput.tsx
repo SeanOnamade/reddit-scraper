@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 
@@ -15,6 +15,14 @@ export default function QueryInput() {
     const [manualSub, setManualSub] = useState('');
     const [analyzeImages, setAnalyzeImages] = useState(false);
     const [strictSearch, setStrictSearch] = useState(false);
+    const [hasServerKey, setHasServerKey] = useState(false);
+
+    useEffect(() => {
+        fetch('/api/config/check')
+            .then(res => res.json())
+            .then(data => setHasServerKey(data.hasOpenAiKey))
+            .catch(err => console.error('Failed to check config:', err));
+    }, []);
 
     // Advanced filters
     const [showFilters, setShowFilters] = useState(false);
@@ -27,9 +35,12 @@ export default function QueryInput() {
     const handleExpand = async () => {
         if (!topic.trim()) return;
 
-        if (!settings.openaiKey) {
-            setError('Please set your OpenAI API key in Settings');
-            return;
+        if (!settings.openaiKey && !hasServerKey) {
+            // Wait briefly for check if it's the very first render (unlikely due to user interaction delay)
+            if (!settings.openaiKey && !hasServerKey) {
+                setError('Please set your OpenAI API key in Settings');
+                return;
+            }
         }
 
         setLoading(true);
