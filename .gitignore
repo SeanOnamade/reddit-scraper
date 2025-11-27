@@ -27,3 +27,12 @@ node_modules/
 # Task files
 # tasks.json
 # tasks/ 
+
+# Next.js
+.next/
+out/
+build/
+dist/
+
+# Vercel
+.vercel/

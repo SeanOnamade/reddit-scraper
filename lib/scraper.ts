@@ -112,8 +112,10 @@ export async function searchRedditViaGoogle(
 
         console.log(`Found ${items.length} results from Google, fetching full details...`);
 
-        // Process results in parallel to fetch full content
-        const postPromises = items.map(async (item: any) => {
+        // Process results sequentially to avoid rate limits
+        const results: (RedditPost | null)[] = [];
+
+        for (const item of items) {
             try {
                 const subredditMatch = item.link.match(/reddit\.com\/r\/([^\/]+)/);
                 const subreddit = subredditMatch ? subredditMatch[1] : 'unknown';
@@ -137,7 +139,10 @@ export async function searchRedditViaGoogle(
                     // Add .json to the URL to get the JSON data
                     // Remove any query parameters first
                     const cleanLink = item.link.split('?')[0];
-                    const jsonUrl = cleanLink.endsWith('/') ? `${cleanLink}.json` : `${cleanLink}/.json`;
+                    const jsonUrl = cleanLink.endsWith('/') ? `${cleanLink}.json?raw_json=1` : `${cleanLink}/.json?raw_json=1`;
+
+                    // Add a small random delay between requests (200-700ms) to avoid rate limits while staying within Vercel timeouts
+                    await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 500));
 
                     const redditResponse = await fetch(jsonUrl, {
                         headers: {
@@ -209,7 +214,7 @@ export async function searchRedditViaGoogle(
                     console.warn(`  ⚠️ Error fetching JSON for ${item.link}:`, e);
                 }
 
-                return {
+                results.push({
                     id: postId,
                     subreddit,
                     title: item.title,
@@ -223,14 +228,12 @@ export async function searchRedditViaGoogle(
                     flair,
                     upvoteRatio,
                     numComments
-                };
+                });
             } catch (err) {
                 console.error('Error processing item:', err);
-                return null;
+                results.push(null);
             }
-        });
-
-        const results = await Promise.all(postPromises);
+        }
         const validPosts = results.filter((p): p is RedditPost => p !== null);
         posts.push(...validPosts);
 

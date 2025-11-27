@@ -11,6 +11,8 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'OpenAI API key is required' }, { status: 400 });
         }
 
+        const openai = new OpenAI({ apiKey: finalApiKey });
+
         // Headers to mimic a real browser
         const headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -55,8 +57,11 @@ export async function POST(request: Request) {
                 }
 
                 // Deep Fetch: Get full details (Score, Comments, Type) for each RSS item
-                // Limit to 15 to avoid hitting rate limits too hard/fast
-                const deepFetchPromises = rssItems.slice(0, 15).map(async (item) => {
+                // Limit to 10 to avoid hitting rate limits and Vercel timeouts (10s limit)
+                posts = [];
+                const itemsToProcess = rssItems.slice(0, 10);
+
+                for (const item of itemsToProcess) {
                     let score = 0;
                     let comments: string[] = [];
                     let imageDescription: string | undefined;
@@ -74,7 +79,11 @@ export async function POST(request: Request) {
                     let imageUrl = item.link;
 
                     try {
-                        const jsonUrl = item.link.split('?')[0] + '.json';
+                        const jsonUrl = item.link.split('?')[0] + '.json?raw_json=1';
+
+                        // Add delay between requests (200-700ms)
+                        await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 500));
+
                         const res = await fetch(jsonUrl, { headers });
                         if (res.ok) {
                             const data = await res.json();
@@ -110,7 +119,7 @@ export async function POST(request: Request) {
                     // Only analyze if we have a valid image URL (not just a reddit permalink)
                     if (analyzeImages && (postType === 'image' || imageUrl.match(/\.(jpg|jpeg|png|webp)$/i))) {
                         try {
-                            const openai = new OpenAI({ apiKey: finalApiKey });
+                            // Use shared openai instance
                             const imageResponse = await openai.chat.completions.create({
                                 model: "gpt-4o",
                                 messages: [
@@ -133,7 +142,7 @@ export async function POST(request: Request) {
                         }
                     }
 
-                    return {
+                    posts.push({
                         title: item.title,
                         body,
                         score,
@@ -144,10 +153,8 @@ export async function POST(request: Request) {
                         type: postType,
                         comments, // Pass comments to OpenAI
                         imageDescription
-                    };
-                });
-
-                posts = await Promise.all(deepFetchPromises);
+                    });
+                }
                 console.log(`Fetched ${posts.length} posts via RSS (with deep details)`);
             } else {
                 throw new Error(`RSS Blocked: ${rssResponse.status}`);
@@ -187,7 +194,8 @@ export async function POST(request: Request) {
                     const items = data.items || [];
 
                     // Fetch full details for each Google result
-                    const detailedPostsPromises = items.map(async (item: any) => {
+                    posts = [];
+                    for (const item of items) {
                         let score = 0;
                         let author = 'unknown';
                         let body = item.snippet;
@@ -201,7 +209,10 @@ export async function POST(request: Request) {
                             const match = item.link.match(/comments\/([a-z0-9]+)\//);
                             if (match && match[1]) {
                                 const postId = match[1];
-                                const redditUrl = `https://www.reddit.com/comments/${postId}.json`;
+                                const redditUrl = `https://www.reddit.com/comments/${postId}.json?raw_json=1`;
+
+                                // Add delay (200-700ms)
+                                await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 500));
 
                                 const res = await fetch(redditUrl, {
                                     headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' }
@@ -236,6 +247,7 @@ export async function POST(request: Request) {
                                         if (analyzeImages && (postType === 'image' || (postData.url && postData.url.includes('i.redd.it')))) {
                                             try {
                                                 const imageUrl = postData.url;
+                                                // Use shared openai instance
                                                 const visionResponse = await openai.chat.completions.create({
                                                     model: "gpt-4o",
                                                     messages: [
@@ -265,7 +277,7 @@ export async function POST(request: Request) {
                             console.error('Deep fetch error:', e);
                         }
 
-                        return {
+                        posts.push({
                             title: item.title,
                             body: body,
                             score: score,
@@ -276,34 +288,32 @@ export async function POST(request: Request) {
                             type: postType,
                             comments,
                             imageDescription
-                        };
-                    });
-
-                    posts = await Promise.all(detailedPostsPromises);
+                        });
+                    }
                     console.log(`Fetched ${posts.length} posts via Google Fallback (with details)`);
                 }
             }
-        }
 
-        if (posts.length === 0) {
-            throw new Error('Could not fetch posts from Reddit (Blocked via JSON/RSS and Google Fallback failed)');
-        }
 
-        // 2. Analyze with OpenAI
-        const openai = new OpenAI({ apiKey: finalApiKey });
+            if (posts.length === 0) {
+                throw new Error('Could not fetch posts from Reddit (Blocked via JSON/RSS and Google Fallback failed)');
+            }
 
-        const prompt = `
+            // 2. Analyze with OpenAI
+            // Use shared openai instance
+
+            const prompt = `
         Analyze the following top posts from r/${subreddit} (Time range: ${time}).
         Identify the major themes, recurring topics, and overall sentiment of the community.
         
         Posts Data:
         ${JSON.stringify(posts.map((p: any) => ({
-            title: p.title,
-            body: p.body.substring(0, 500), // Increased limit for image descriptions
-            score: p.score,
-            type: p.type,
-            top_comments: p.comments ? p.comments.slice(0, 2) : []
-        })))}
+                title: p.title,
+                body: p.body.substring(0, 500), // Increased limit for image descriptions
+                score: p.score,
+                type: p.type,
+                top_comments: p.comments ? p.comments.slice(0, 2) : []
+            })))}
 
         Return a JSON object with the following structure:
         {
@@ -340,27 +350,27 @@ export async function POST(request: Request) {
         - Categorize each keyword appropriately
         `;
 
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-                { role: "system", content: "You are an expert community analyst. You analyze Reddit communities to understand their culture, themes, and interests. Output valid JSON only." },
-                { role: "user", content: prompt }
-            ],
-            response_format: { type: "json_object" }
-        });
+            const completion = await openai.chat.completions.create({
+                model: "gpt-4o-mini",
+                messages: [
+                    { role: "system", content: "You are an expert community analyst. You analyze Reddit communities to understand their culture, themes, and interests. Output valid JSON only." },
+                    { role: "user", content: prompt }
+                ],
+                response_format: { type: "json_object" }
+            });
 
-        const analysis = JSON.parse(completion.choices[0].message.content || '{}');
+            const analysis = JSON.parse(completion.choices[0].message.content || '{}');
 
-        return NextResponse.json({
-            posts,
-            analysis
-        });
+            return NextResponse.json({
+                posts,
+                analysis
+            });
 
-    } catch (error) {
-        console.error('Theme analysis error:', error);
-        return NextResponse.json(
-            { error: error instanceof Error ? error.message : 'Failed to analyze theme' },
-            { status: 500 }
-        );
+        } catch (error) {
+            console.error('Theme analysis error:', error);
+            return NextResponse.json(
+                { error: error instanceof Error ? error.message : 'Failed to analyze theme' },
+                { status: 500 }
+            );
+        }
     }
-}
