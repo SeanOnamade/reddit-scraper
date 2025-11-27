@@ -139,17 +139,27 @@ export async function searchRedditViaGoogle(
                     // Add .json to the URL to get the JSON data
                     // Remove any query parameters first
                     const cleanLink = item.link.split('?')[0];
-                    const jsonUrl = cleanLink.endsWith('/') ? `${cleanLink}.json?raw_json=1` : `${cleanLink}/.json?raw_json=1`;
+                    let jsonUrl = cleanLink.endsWith('/') ? `${cleanLink}.json?raw_json=1` : `${cleanLink}/.json?raw_json=1`;
 
                     // Add a small random delay between requests (200-700ms) to avoid rate limits while staying within Vercel timeouts
                     await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 500));
 
-                    const redditResponse = await fetch(jsonUrl, {
-                        headers: {
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                            'Accept': 'application/json'
-                        }
-                    });
+                    const headers = {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept': 'application/json',
+                        'Referer': 'https://www.google.com/',
+                        'Accept-Language': 'en-US,en;q=0.9'
+                    };
+
+                    let redditResponse = await fetch(jsonUrl, { headers });
+
+                    // If www.reddit.com returns 403, try old.reddit.com as fallback
+                    if (redditResponse.status === 403) {
+                        console.log(`  ⚠️ 403 from www.reddit.com, trying old.reddit.com for ${item.link}`);
+                        jsonUrl = jsonUrl.replace('www.reddit.com', 'old.reddit.com');
+                        await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 300));
+                        redditResponse = await fetch(jsonUrl, { headers });
+                    }
 
                     if (redditResponse.ok) {
                         const redditData = await redditResponse.json();
