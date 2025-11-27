@@ -293,27 +293,28 @@ export async function POST(request: Request) {
                     console.log(`Fetched ${posts.length} posts via Google Fallback (with details)`);
                 }
             }
+        }
 
 
-            if (posts.length === 0) {
-                throw new Error('Could not fetch posts from Reddit (Blocked via JSON/RSS and Google Fallback failed)');
-            }
+        if (posts.length === 0) {
+            throw new Error('Could not fetch posts from Reddit (Blocked via JSON/RSS and Google Fallback failed)');
+        }
 
-            // 2. Analyze with OpenAI
-            // Use shared openai instance
+        // 2. Analyze with OpenAI
+        // Use shared openai instance
 
-            const prompt = `
+        const prompt = `
         Analyze the following top posts from r/${subreddit} (Time range: ${time}).
         Identify the major themes, recurring topics, and overall sentiment of the community.
         
         Posts Data:
         ${JSON.stringify(posts.map((p: any) => ({
-                title: p.title,
-                body: p.body.substring(0, 500), // Increased limit for image descriptions
-                score: p.score,
-                type: p.type,
-                top_comments: p.comments ? p.comments.slice(0, 2) : []
-            })))}
+            title: p.title,
+            body: p.body.substring(0, 500), // Increased limit for image descriptions
+            score: p.score,
+            type: p.type,
+            top_comments: p.comments ? p.comments.slice(0, 2) : []
+        })))}
 
         Return a JSON object with the following structure:
         {
@@ -350,27 +351,27 @@ export async function POST(request: Request) {
         - Categorize each keyword appropriately
         `;
 
-            const completion = await openai.chat.completions.create({
-                model: "gpt-4o-mini",
-                messages: [
-                    { role: "system", content: "You are an expert community analyst. You analyze Reddit communities to understand their culture, themes, and interests. Output valid JSON only." },
-                    { role: "user", content: prompt }
-                ],
-                response_format: { type: "json_object" }
-            });
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+                { role: "system", content: "You are an expert community analyst. You analyze Reddit communities to understand their culture, themes, and interests. Output valid JSON only." },
+                { role: "user", content: prompt }
+            ],
+            response_format: { type: "json_object" }
+        });
 
-            const analysis = JSON.parse(completion.choices[0].message.content || '{}');
+        const analysis = JSON.parse(completion.choices[0].message.content || '{}');
 
-            return NextResponse.json({
-                posts,
-                analysis
-            });
+        return NextResponse.json({
+            posts,
+            analysis
+        });
 
-        } catch (error) {
-            console.error('Theme analysis error:', error);
-            return NextResponse.json(
-                { error: error instanceof Error ? error.message : 'Failed to analyze theme' },
-                { status: 500 }
-            );
-        }
+    } catch (error) {
+        console.error('Theme analysis error:', error);
+        return NextResponse.json(
+            { error: error instanceof Error ? error.message : 'Failed to analyze theme' },
+            { status: 500 }
+        );
     }
+}
